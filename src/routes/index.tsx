@@ -450,7 +450,7 @@ function PitchScreen({
       {showQr ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6">
           <p className="font-display text-lg font-bold">Scan karke Just order karein</p>
-          <div className="rounded-xl bg-white p-3">
+          <div className="rounded-xl bg-card p-3">
             <QRCode value={APP_LINK} size={168} />
           </div>
           <p className="text-xs text-muted-foreground">Swiggy Instamart · Just private label</p>

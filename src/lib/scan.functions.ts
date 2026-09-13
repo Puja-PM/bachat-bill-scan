@@ -67,10 +67,17 @@ export const scanReceipt = createServerFn({ method: "POST" })
                 type: "text",
                 text: "Extract all items from this receipt (multiple photos may be parts of one long bill).",
               },
-              ...data.images.map((url) => ({
-                type: "image_url" as const,
-                image_url: { url },
-              })),
+              ...data.images.map((url, index) =>
+                url.startsWith("data:application/pdf")
+                  ? {
+                      type: "file" as const,
+                      file: { filename: `receipt-${index + 1}.pdf`, file_data: url },
+                    }
+                  : {
+                      type: "image_url" as const,
+                      image_url: { url },
+                    },
+              ),
             ],
           },
         ],
