@@ -8,6 +8,7 @@ const ScanInput = z.object({
 const SYSTEM_PROMPT = `You read Indian hypermarket receipts (D-Mart, Star Bazaar, Reliance Fresh, etc.), often faded thermal prints.
 Extract every purchased line item. Rules:
 - name: the printed item description, cleaned up (brand + product).
+- raw_line: the complete original printed line, including quantity/unit text.
 - qty: the pack size number only (e.g. 500 for "500 ML", 5 for "5 KG", 1 for loose/unit items).
 - unit: normalize to "g" (grams; convert kg -> g), "ml" (millilitres; convert L -> ml) or "unit" (pieces, apparel, unlabelled packs).
 - count: how many packs of that line were bought (default 1).
@@ -28,9 +29,10 @@ const schema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "qty", "unit", "count", "price", "category", "unclear"],
+        required: ["name", "raw_line", "qty", "unit", "count", "price", "category", "unclear"],
         properties: {
           name: { type: "string" },
+          raw_line: { type: "string" },
           qty: { type: "number" },
           unit: { type: "string", enum: ["g", "ml", "unit"] },
           count: { type: "number" },
@@ -107,18 +109,24 @@ export const scanReceipt = createServerFn({ method: "POST" })
 
     return {
       store: parsed.store || "Hypermarket Bill",
-      items: (parsed.items ?? []).map((raw, i) => ({
-        id: `item-${i}-${Math.random().toString(36).slice(2, 8)}`,
-        name: String(raw["name"] ?? "Unknown Item"),
-        qty: Number(raw["qty"]) > 0 ? Number(raw["qty"]) : 1,
-        unit: (["g", "ml", "unit"].includes(String(raw["unit"])) ? raw["unit"] : "unit") as
-          | "g"
-          | "ml"
-          | "unit",
-        count: Number(raw["count"]) > 0 ? Number(raw["count"]) : 1,
-        price: Number(raw["price"]) || 0,
-        category: String(raw["category"] ?? "grocery").toLowerCase(),
-        unclear: Boolean(raw["unclear"]),
-      })),
+      items: (parsed.items ?? []).map((raw, i) => {
+        const rawLine = String(raw["raw_line"] ?? raw["name"] ?? "");
+        const unit = (["g", "ml", "unit"].includes(String(raw["unit"]))
+          ? raw["unit"]
+          : "unit") as "g" | "ml" | "unit";
+        let qty = Number(raw["qty"]) > 0 ? Number(raw["qty"]) : 1;
+        if (unit === "g" && /\bkg\b/i.test(rawLine) && qty < 100) qty *= 1000;
+        if (unit === "ml" && /\b(?:ltr?|litre)\b/i.test(rawLine) && qty < 100) qty *= 1000;
+        return {
+          id: `item-${i}-${Math.random().toString(36).slice(2, 8)}`,
+          name: String(raw["name"] ?? "Unknown Item"),
+          qty,
+          unit,
+          count: Number(raw["count"]) > 0 ? Number(raw["count"]) : 1,
+          price: Number(raw["price"]) || 0,
+          category: String(raw["category"] ?? "grocery").toLowerCase(),
+          unclear: Boolean(raw["unclear"]),
+        };
+      }),
     };
   });
