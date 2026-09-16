@@ -68,17 +68,28 @@ function matchScore(itemName: string, phrase: string): number {
   return enoughEvidence && coverage >= 0.6 ? coverage + overlap * 0.05 : 0;
 }
 
+// Liquid groceries are printed by volume on bills but packed by weight in the
+// Just catalog, so grams and millilitres are treated as comparable (1:1).
+function unitsComparable(a: Unit, b: Unit): boolean {
+  const fa = unitFamily(a);
+  const fb = unitFamily(b);
+  if (fa === fb) return true;
+  return fa !== "count" && fb !== "count";
+}
+
 export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduct | null {
   const candidates: Array<{ product: JustProduct; score: number; sizeGap: number }> = [];
+  const totalQty = item.qty * (item.count || 1);
   for (const p of catalog) {
     if (!p.active) continue;
-    if (unitFamily(p.pack_unit) !== unitFamily(item.unit)) continue;
-    const score = Math.max(0, ...p.keywords.map((keyword) => matchScore(item.name, keyword)));
-    if (score === 0) continue;
+    if (!unitsComparable(p.pack_unit, item.unit)) continue;
+    const base = Math.max(0, ...p.keywords.map((keyword) => matchScore(item.name, keyword)));
+    if (base === 0) continue;
+    const sameFamily = unitFamily(p.pack_unit) === unitFamily(item.unit);
     candidates.push({
       product: p,
-      score,
-      sizeGap: Math.abs(p.pack_qty - item.qty * (item.count || 1)),
+      score: sameFamily ? base : base * 0.9,
+      sizeGap: Math.abs(p.pack_qty - totalQty),
     });
   }
   candidates.sort((a, b) => b.score - a.score || a.sizeGap - b.sizeGap);

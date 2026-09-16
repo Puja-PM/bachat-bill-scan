@@ -115,8 +115,9 @@ export const scanReceipt = createServerFn({ method: "POST" })
           ? raw["unit"]
           : "unit") as "g" | "ml" | "unit";
         let qty = Number(raw["qty"]) > 0 ? Number(raw["qty"]) : 1;
-        if (unit === "g" && /\bkg\b/i.test(rawLine) && qty < 100) qty *= 1000;
-        if (unit === "ml" && /\b(?:ltr?|litre)\b/i.test(rawLine) && qty < 100) qty *= 1000;
+        if (unit === "g" && /\bkgs?\b/i.test(rawLine) && qty < 100) qty *= 1000;
+        if (unit === "ml" && /\b(?:l|lt|ltr|ltrs|litre|liter)s?\b/i.test(rawLine) && qty < 100)
+          qty *= 1000;
         return {
           id: `item-${i}-${Math.random().toString(36).slice(2, 8)}`,
           name: String(raw["name"] ?? "Unknown Item"),

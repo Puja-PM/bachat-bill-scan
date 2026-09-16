@@ -86,9 +86,6 @@ function ScannerApp() {
     }
   }
 
-  function update(id: string, patch: Partial<ScannedItem>) {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
-  }
 
   function reset() {
     setItems([]);
