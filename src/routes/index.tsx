@@ -6,30 +6,28 @@ import {
   Camera,
   Upload,
   Loader2,
-  Trash2,
-  Plus,
-  ArrowRight,
   AlertTriangle,
   RotateCcw,
   Settings,
+  Sparkles,
 } from "lucide-react";
 
 import { scanReceipt } from "@/lib/scan.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { compare, formatQty, rupees } from "@/lib/compare";
 import { Tag } from "@/components/Tag";
-import type { JustProduct, ScannedItem, Unit } from "@/lib/types";
+import type { JustProduct, ScannedItem } from "@/lib/types";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Just Bill Bachat Scanner — D-Mart Bill Compare" },
+      { title: "JUST ke saath Grocery main Bachat" },
       {
         name: "description",
         content:
           "Scan a D-Mart, Star Bazaar or Reliance Fresh bill and show shoppers exactly how much they save with Just from Swiggy Instamart.",
       },
-      { property: "og:title", content: "Just Bill Bachat Scanner" },
+      { property: "og:title", content: "JUST ke saath Grocery main Bachat" },
       {
         property: "og:description",
         content: "Instant receipt scan aur bachat pitch for Just private-label groceries.",
@@ -41,7 +39,7 @@ export const Route = createFileRoute("/")({
   component: ScannerApp,
 });
 
-type Step = "capture" | "scanning" | "verify" | "pitch";
+type Step = "capture" | "scanning" | "pitch";
 
 const APP_LINK = "https://www.swiggy.com/instamart";
 
@@ -81,7 +79,7 @@ function ScannerApp() {
       setCatalog((catalogRes.data ?? []) as unknown as JustProduct[]);
       setStore(result.store);
       setItems(result.items);
-      setStep("verify");
+      setStep("pitch");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kuch galat ho gaya");
       setStep("capture");
@@ -104,7 +102,7 @@ function ScannerApp() {
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-extrabold leading-tight">
-              Just Bill Bachat Scanner
+              JUST ke saath Grocery main Bachat
             </h1>
             <p className="text-xs opacity-85">Magarpatta &amp; Hadapsar · Swiggy Instamart</p>
           </div>
@@ -141,32 +139,6 @@ function ScannerApp() {
               Har item padha ja raha hai, bas 10-15 second.
             </p>
           </div>
-        )}
-
-        {step === "verify" && (
-          <VerifyScreen
-            store={store}
-            items={items}
-            onChange={update}
-            onRemove={(id) => setItems((p) => p.filter((i) => i.id !== id))}
-            onAdd={() =>
-              setItems((p) => [
-                ...p,
-                {
-                  id: `manual-${Date.now()}`,
-                  name: "",
-                  qty: 1,
-                  unit: "unit",
-                  count: 1,
-                  price: 0,
-                  category: "grocery",
-                  unclear: false,
-                },
-              ])
-            }
-            onBack={reset}
-            onSubmit={() => setStep("pitch")}
-          />
         )}
 
         {step === "pitch" && (
@@ -229,153 +201,6 @@ function CaptureScreen({ onCamera, onGallery }: { onCamera: () => void; onGaller
   );
 }
 
-const UNITS: Unit[] = ["g", "ml", "unit"];
-
-function VerifyScreen({
-  store,
-  items,
-  onChange,
-  onRemove,
-  onAdd,
-  onBack,
-  onSubmit,
-}: {
-  store: string;
-  items: ScannedItem[];
-  onChange: (id: string, patch: Partial<ScannedItem>) => void;
-  onRemove: (id: string) => void;
-  onAdd: () => void;
-  onBack: () => void;
-  onSubmit: () => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-display text-xl font-bold">Review Parsed Bill ({store})</h2>
-        <p className="text-sm text-muted-foreground">
-          {items.length} items — 5 second mein check karein, phir pitch banayein.
-        </p>
-      </div>
-
-      <div className="space-y-3">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className={`rounded-2xl border bg-card p-3 ${
-              item.unclear ? "border-warning/60 bg-warning-soft" : "border-border"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <input
-                value={item.name}
-                placeholder="Item ka naam"
-                onChange={(e) => onChange(item.id, { name: e.target.value, unclear: false })}
-                className="min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium outline-none focus:border-primary"
-              />
-              <button
-                onClick={() => onRemove(item.id)}
-                className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
-                aria-label="Item hatayein"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-2 grid grid-cols-4 gap-2">
-              <LabeledInput
-                label="Qty"
-                value={item.qty}
-                onChange={(v) => onChange(item.id, { qty: Number(v) || 0 })}
-              />
-              <div>
-                <span className="text-[10px] font-semibold uppercase text-muted-foreground">
-                  Unit
-                </span>
-                <select
-                  value={item.unit}
-                  onChange={(e) => onChange(item.id, { unit: e.target.value as Unit })}
-                  className="w-full rounded-lg border border-input bg-background px-2 py-2 text-sm outline-none focus:border-primary"
-                >
-                  {UNITS.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <LabeledInput
-                label="Packs"
-                value={item.count}
-                onChange={(v) => onChange(item.id, { count: Number(v) || 1 })}
-              />
-              <LabeledInput
-                label="₹ Price"
-                value={item.price}
-                onChange={(v) => onChange(item.id, { price: Number(v) || 0 })}
-              />
-            </div>
-            <input
-              value={item.category}
-              onChange={(e) => onChange(item.id, { category: e.target.value.toLowerCase() })}
-              placeholder="category"
-              className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-muted-foreground outline-none focus:border-primary"
-            />
-            {item.unclear && (
-              <p className="mt-2 text-xs font-semibold text-warning-foreground">
-                Unclear Item — agent verify karein
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <button
-        onClick={onAdd}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm font-semibold text-muted-foreground hover:border-primary hover:text-primary"
-      >
-        <Plus className="h-4 w-4" /> Add Missing Item
-      </button>
-
-      <div className="flex gap-3">
-        <button
-          onClick={onBack}
-          className="rounded-xl border border-border px-4 py-3 text-sm font-semibold text-muted-foreground"
-        >
-          Wapas
-        </button>
-        <button
-          onClick={onSubmit}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-3 font-display text-base font-bold text-secondary-foreground"
-        >
-          Generate Comparison Pitch <ArrowRight className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function LabeledInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div>
-      <span className="text-[10px] font-semibold uppercase text-muted-foreground">{label}</span>
-      <input
-        type="number"
-        inputMode="decimal"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-input bg-background px-2 py-2 text-sm outline-none focus:border-primary"
-      />
-    </div>
-  );
-}
-
 function PitchScreen({
   store,
   summary,
@@ -387,29 +212,30 @@ function PitchScreen({
 }) {
   const [showQr, setShowQr] = useState(false);
   const positive = summary.savings >= 0;
+  const availableRows = summary.rows.filter((row) => row.justPrice !== null);
+  const unavailableRows = summary.rows.filter((row) => row.justPrice === null);
 
   return (
     <div className="space-y-5">
       <div className="overflow-hidden rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-pop)]">
-        <div className="px-5 py-3 text-xs font-semibold uppercase tracking-wide opacity-80">
+        <div className="px-5 py-3 text-xs font-semibold uppercase opacity-80">
           Just Magarpatta / Hadapsar
         </div>
-        <div className="bg-primary-foreground/5 px-5 pb-5">
-          <p className="font-display text-sm font-bold uppercase tracking-wide">
-            Aapki total bachat with Just
-          </p>
-          <div className="flex items-end gap-3">
-            <span className="font-display text-5xl font-extrabold">
+        <div className="bg-primary-foreground/5 px-5 pb-6 text-center">
+          <Sparkles className="mx-auto mb-1 h-7 w-7 text-accent" />
+          <p className="font-display text-base font-bold uppercase">Aapki total bachat</p>
+          <div className="mt-1 flex flex-wrap items-end justify-center gap-3">
+            <span className="font-display text-6xl font-extrabold leading-none">
               {rupees(Math.abs(summary.savings))}
             </span>
             <span className="mb-2 rounded-full bg-accent px-3 py-1 text-sm font-bold text-accent-foreground">
               {Math.abs(summary.savingsPct)}% {positive ? "OFF" : "ZYADA"}
             </span>
           </div>
-          <p className="text-xs opacity-85">
+          <p className="mt-2 text-sm font-semibold opacity-90">
             {positive ? "Is bill par direct savings" : "Is bill par Just thoda mehenga nikla"}
           </p>
-          <div className="mt-4 space-y-1 border-t border-primary-foreground/20 pt-3 text-sm">
+          <div className="mt-5 space-y-1 border-t border-primary-foreground/20 pt-4 text-left text-sm">
             <Row label={`${store} total (matched items)`} value={rupees(summary.martTotal)} />
             <Row label="Just app equivalent price" value={rupees(summary.justTotal)} />
           </div>
@@ -417,11 +243,11 @@ function PitchScreen({
       </div>
 
       <h2 className="font-display text-lg font-bold">
-        Item breakdown ({summary.rows.length} items scanned)
+        JUST par available ({availableRows.length})
       </h2>
 
       <div className="space-y-3">
-        {summary.rows.map((row) => (
+        {availableRows.map((row) => (
           <div key={row.item.id} className="rounded-2xl border border-border bg-card p-4">
             <div className="flex justify-between gap-3 text-sm">
               <span className="font-semibold uppercase text-muted-foreground">MART</span>
@@ -446,6 +272,30 @@ function PitchScreen({
           </div>
         ))}
       </div>
+
+      {unavailableRows.length > 0 && (
+        <section className="border-t border-border pt-5">
+          <h2 className="font-display text-lg font-bold text-muted-foreground">
+            JUST par available nahi ({unavailableRows.length})
+          </h2>
+          <div className="mt-3 space-y-3">
+            {unavailableRows.map((row) => (
+              <div key={row.item.id} className="rounded-2xl border border-border bg-muted p-4">
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="flex-1 font-medium">
+                    {row.item.name} ({formatQty(row.item.qty, row.item.unit)}
+                    {row.item.count > 1 ? ` × ${row.item.count}` : ""})
+                  </span>
+                  <span className="font-bold">{rupees(row.item.price)}</span>
+                </div>
+                <div className="mt-2">
+                  <Tag status={row.status}>{row.label}</Tag>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {showQr ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6">

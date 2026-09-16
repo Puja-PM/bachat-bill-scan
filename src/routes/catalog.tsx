@@ -8,7 +8,7 @@ import type { JustProduct } from "@/lib/types";
 export const Route = createFileRoute("/catalog")({
   head: () => ({
     meta: [
-      { title: "Just Catalog Manager — Bill Bachat Scanner" },
+      { title: "JUST Catalog — Grocery main Bachat" },
       {
         name: "description",
         content: "Just private-label products aur unke pack prices add ya update karein.",

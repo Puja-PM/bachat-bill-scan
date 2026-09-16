@@ -35,22 +35,54 @@ function unitFamily(u: Unit): "weight" | "volume" | "count" {
   return "count";
 }
 
+const MATCH_STOP_WORDS = new Set([
+  "and",
+  "with",
+  "the",
+  "for",
+  "of",
+  "plus",
+  "pack",
+  "pouch",
+  "refill",
+  "new",
+  "fresh",
+]);
+
+function words(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((word) => word.length > 2 && !MATCH_STOP_WORDS.has(word));
+}
+
+function matchScore(itemName: string, phrase: string): number {
+  const itemWords = new Set(words(itemName));
+  const phraseWords = new Set(words(phrase));
+  if (itemWords.size === 0 || phraseWords.size === 0) return 0;
+
+  const overlap = [...phraseWords].filter((word) => itemWords.has(word)).length;
+  const coverage = overlap / Math.min(itemWords.size, phraseWords.size);
+  const enoughEvidence = overlap >= 2 || (overlap === 1 && phraseWords.size === 1);
+  return enoughEvidence && coverage >= 0.6 ? coverage + overlap * 0.05 : 0;
+}
+
 export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduct | null {
-  const name = item.name.toLowerCase();
-  let best: JustProduct | null = null;
-  let bestLen = 0;
+  const candidates: Array<{ product: JustProduct; score: number; sizeGap: number }> = [];
   for (const p of catalog) {
     if (!p.active) continue;
     if (unitFamily(p.pack_unit) !== unitFamily(item.unit)) continue;
-    for (const kw of p.keywords) {
-      const k = kw.toLowerCase().trim();
-      if (k.length > 2 && name.includes(k) && k.length > bestLen) {
-        best = p;
-        bestLen = k.length;
-      }
-    }
+    const score = Math.max(0, ...p.keywords.map((keyword) => matchScore(item.name, keyword)));
+    if (score === 0) continue;
+    candidates.push({
+      product: p,
+      score,
+      sizeGap: Math.abs(p.pack_qty - item.qty * (item.count || 1)),
+    });
   }
-  return best;
+  candidates.sort((a, b) => b.score - a.score || a.sizeGap - b.sizeGap);
+  return candidates[0]?.product ?? null;
 }
 
 export function formatQty(qty: number, unit: Unit): string {

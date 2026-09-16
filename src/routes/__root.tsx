@@ -77,10 +77,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Just Bill Bachat Scanner" },
+      { title: "JUST ke saath Grocery main Bachat" },
       { name: "description", content: "Instant bill comparison for Just grocery savings." },
       { name: "author", content: "Just" },
-      { property: "og:title", content: "Just Bill Bachat Scanner" },
+      { property: "og:title", content: "JUST ke saath Grocery main Bachat" },
       { property: "og:description", content: "Instant bill comparison for Just grocery savings." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
