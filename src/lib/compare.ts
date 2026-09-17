@@ -308,12 +308,17 @@ function unitsComparable(a: Unit, b: Unit): boolean {
 export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduct | null {
   const candidates: Array<{ product: JustProduct; score: number; sizeGap: number }> = [];
   const totalQty = item.qty * (item.count || 1);
+  const itemForm = formOf(new Set(words(item.name)));
   for (const p of catalog) {
     if (!p.active) continue;
     if (!unitsComparable(p.pack_unit, item.unit)) continue;
     const phrases = [...p.keywords, p.name];
+    // A detergent bar must map to a bar, not to the powder or the liquid.
+    const productForm = formOf(new Set(words(phrases.join(" "))));
+    if (itemForm && productForm && itemForm !== productForm) continue;
     const base = Math.max(0, ...phrases.map((phrase) => matchScore(item.name, phrase)));
     if (base === 0) continue;
+
     const sameFamily = unitFamily(p.pack_unit) === unitFamily(item.unit);
     candidates.push({
       product: p,
