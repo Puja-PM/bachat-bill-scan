@@ -188,7 +188,7 @@ function ScannerApp() {
         )}
 
         {step === "pitch" && (
-          <PitchScreen store={store} summary={summary} catalogCount={catalog.length} onReset={reset} />
+          <PitchScreen store={store} summary={summary} catalog={catalog} onReset={reset} />
         )}
       </main>
 
