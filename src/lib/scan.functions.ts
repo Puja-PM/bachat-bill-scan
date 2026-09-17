@@ -60,6 +60,11 @@ export const scanReceipt = createServerFn({ method: "POST" })
       },
       body: JSON.stringify({
         model: "google/gemini-3.8-flash",
+        // Deterministic reading: the same bill must produce the same lines
+        // (names, sizes, prices) on every scan.
+        temperature: 0,
+        top_p: 1,
+        seed: 7,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           {
