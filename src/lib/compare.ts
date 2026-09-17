@@ -453,10 +453,11 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
 
 
   const strong = shared.filter((word) => !TYPE_WORDS.has(word) && !BRAND_WORDS.has(word)).length;
-  const weak = shared.length - strong;
+  const brand = shared.filter((word) => BRAND_WORDS.has(word)).length;
+  const weak = shared.length - strong - brand;
   const coverage = shared.length / Math.min(itemWords.size, phraseWords.size);
 
-  let score = strong * 1 + weak * 0.4 + coverage * 0.5;
+  let score = strong * 1 + brand * 0.7 + weak * 0.4 + coverage * 0.5;
 
   // Penalise catalog-only speciality qualifiers the bill line never mentions.
   for (const word of phraseWords) {
