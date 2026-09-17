@@ -39,6 +39,7 @@ const OUT_OF_SCOPE_WORDS = [
   "broom",
   "mop stick",
   "storage box",
+  "lock",
   "jar set",
   "flask",
   "cooker",
@@ -106,6 +107,8 @@ const MATCH_STOP_WORDS = new Set([
   "pure",
   "original",
   "gentle",
+  "refined",
+  "select",
 ]);
 
 
@@ -154,6 +157,11 @@ const SYNONYMS: Record<string, string> = {
   masoor: "lentil",
   toor: "tur",
   arhar: "tur",
+  hingraj: "hing",
+  asafoetida: "hing",
+  heeng: "hing",
+  wheat: "atta",
+  gehun: "atta",
 };
 
 // Generic product-type nouns: meaningful, but weak evidence on their own.
@@ -266,6 +274,14 @@ const SPECIALITY_WORDS = new Set([
   "ragi",
   "jowar",
   "bajra",
+  // Pasta shapes: a wheat atta bill line is not durum pasta.
+  "durum",
+  "penne",
+  "fussili",
+  "farfale",
+  "rigate",
+  "macaroni",
+  "spaghetti",
 ]);
 
 function words(value: string): string[] {
@@ -287,14 +303,18 @@ function formOf(wordSet: Set<string>): string | null {
   return null;
 }
 
-function matchScore(itemName: string, phrase: string): number {
+function matchScore(itemName: string, phrase: string, productWords?: Set<string>): number {
   const itemWords = new Set(words(itemName));
   const phraseWords = new Set(words(phrase));
   if (itemWords.size === 0 || phraseWords.size === 0) return 0;
 
+  // Product types are read from the whole product (name + keywords), so a
+  // brand-only keyword like "Lux radiant Glow" still counts as a soap.
+  const typeSource = productWords ?? phraseWords;
+
   // Different product types entirely (cooking oil vs handwash): never a match.
   const itemTypes = [...itemWords].filter((w) => TYPE_WORDS.has(w));
-  const phraseTypes = [...phraseWords].filter((w) => TYPE_WORDS.has(w));
+  const phraseTypes = [...typeSource].filter((w) => TYPE_WORDS.has(w));
   if (
     itemTypes.length > 0 &&
     phraseTypes.length > 0 &&
@@ -311,6 +331,11 @@ function matchScore(itemName: string, phrase: string): number {
   const shared = [...phraseWords].filter((word) => itemWords.has(word));
   if (shared.length === 0) return 0;
 
+  // The bill line states a product type the catalog item never mentions:
+  // brand overlap only, so treat it as very weak evidence.
+  const typeless = itemTypes.length > 0 && phraseTypes.length === 0;
+
+
   const strong = shared.filter((word) => !TYPE_WORDS.has(word)).length;
   const weak = shared.length - strong;
   const coverage = shared.length / Math.min(itemWords.size, phraseWords.size);
@@ -321,6 +346,8 @@ function matchScore(itemName: string, phrase: string): number {
   for (const word of phraseWords) {
     if (SPECIALITY_WORDS.has(word) && !itemWords.has(word)) score -= 0.8;
   }
+
+  if (typeless) score *= 0.3;
 
   return score > 0.35 ? score : 0;
 }
@@ -344,9 +371,14 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     if (!unitsComparable(p.pack_unit, item.unit)) continue;
     const phrases = [...p.keywords, p.name];
     // A detergent bar must map to a bar, not to the powder or the liquid.
-    const productForm = formOf(new Set(words(phrases.join(" "))));
+    const productWords = new Set(words(phrases.join(" ")));
+    const productForm = formOf(productWords);
     if (itemForm && productForm && itemForm !== productForm) continue;
-    const base = Math.max(0, ...phrases.map((phrase) => matchScore(item.name, phrase)));
+    const base = Math.max(
+      0,
+      ...phrases.map((phrase) => matchScore(item.name, phrase, productWords)),
+    );
+
     if (base === 0) continue;
 
     const sameFamily = unitFamily(p.pack_unit) === unitFamily(item.unit);
