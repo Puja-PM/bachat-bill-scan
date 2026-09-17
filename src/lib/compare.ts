@@ -170,7 +170,14 @@ const SYNONYMS: Record<string, string> = {
   saffolla: "saffola",
   papadam: "papad",
   papd: "papad",
+  gingr: "ginger",
+  gngr: "ginger",
+  adrak: "ginger",
+  nuts: "nut",
+  mixed: "mix",
+  mothers: "mother",
 };
+
 
 // Bills glue words together ("WADAKOLAM"); split them before matching.
 const GLUED: Record<string, string> = {
