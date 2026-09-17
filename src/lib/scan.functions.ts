@@ -60,6 +60,7 @@ export const scanReceipt = createServerFn({ method: "POST" })
       },
       body: JSON.stringify({
         model: "google/gemini-3.1-pro-preview",
+        service_tier: "priority",
         temperature: 0,
         top_p: 1,
         seed: 7,
