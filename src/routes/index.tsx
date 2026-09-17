@@ -250,12 +250,12 @@ function CaptureScreen({ onCamera, onGallery }: { onCamera: () => void; onGaller
 function PitchScreen({
   store,
   summary,
-  catalogCount,
+  catalog,
   onReset,
 }: {
   store: string;
   summary: ReturnType<typeof compare>;
-  catalogCount: number;
+  catalog: JustProduct[];
   onReset: () => void;
 }) {
   const [showQr, setShowQr] = useState(false);
