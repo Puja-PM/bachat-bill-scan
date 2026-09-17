@@ -185,7 +185,37 @@ const TYPE_WORDS = new Set([
   "butter",
   "spray",
   "gel",
+  "handwash",
+  "sanitizer",
+  "toothpaste",
+  "brush",
+  "foil",
+  "tissue",
+  "napkin",
+  "freshener",
+  "conditioner",
+  "deodorant",
+  "honey",
+  "jam",
+  "pickle",
+  "masala",
 ]);
+
+// Pack form: a detergent bar is not a detergent powder, even though both are
+// detergent. When both sides state a form and the forms differ, it is a miss.
+const FORM_WORDS = new Set([
+  "bar",
+  "cake",
+  "powder",
+  "liquid",
+  "gel",
+  "spray",
+  "paste",
+  "cream",
+  "wipes",
+  "granules",
+]);
+
 
 // Specialised qualifiers: if the catalog item has them and the bill line does
 // not, it is almost certainly a different product (e.g. pooja oil vs cooking oil).
