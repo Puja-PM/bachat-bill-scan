@@ -319,11 +319,11 @@ function PitchScreen({
         </div>
         <div className="relative z-10 px-5 pb-5 pt-3 text-center sm:px-8 sm:pb-7">
           <div className="relative mx-auto min-h-44 sm:min-h-52">
-            <div className="relative z-10 pt-5 sm:pr-[32%]">
+            <div className="relative z-10 pr-[34%] pt-5 sm:pr-[32%]">
               <Sparkles className="mx-auto mb-1 h-7 w-7 text-accent" />
               <p className="font-display text-base font-extrabold uppercase">Top 5 JUST bachat</p>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                <span className="savings-amount font-display text-6xl font-extrabold leading-none sm:text-7xl">
+                <span className="savings-amount font-display text-4xl font-extrabold leading-none sm:text-7xl">
               {rupees(visibleSavings)}
                 </span>
                 <span className="rounded-full bg-accent px-3 py-1 text-sm font-extrabold text-accent-foreground shadow-sm">
@@ -336,7 +336,7 @@ function PitchScreen({
               alt="JUST savings celebrate karti hui assistant"
               width={816}
               height={816}
-              className="pointer-events-none absolute -bottom-8 -right-12 hidden w-64 object-contain sm:block"
+              className="pointer-events-none absolute -bottom-5 -right-8 block w-44 object-contain sm:-bottom-8 sm:-right-12 sm:w-64"
             />
           </div>
           <p className="relative z-20 mt-1 text-sm font-bold opacity-95">
