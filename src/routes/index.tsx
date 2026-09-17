@@ -264,7 +264,7 @@ function PitchScreen({
     // Only the biggest JUST wins should be visible to the customer.
     .sort((a, b) => b.diff - a.diff);
   const visibleRows = topSavingRows.slice(0, 5);
-  const hiddenSavingCount = Math.max(0, topSavingRows.length - visibleRows.length);
+  
   const visibleSavings = visibleRows.reduce((total, row) => total + row.diff, 0);
   const visibleMartTotal = visibleRows.reduce((total, row) => total + row.item.price, 0);
   const visibleJustTotal = visibleRows.reduce((total, row) => total + (row.justPrice ?? 0), 0);
