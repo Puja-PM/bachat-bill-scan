@@ -315,13 +315,9 @@ function PitchScreen({
     ).values(),
   ).slice(0, 14);
 
-  async function shareSavings() {
-    const text = `Maine JUST par ${rupees(visibleSavings)} bachaye!`;
-    if (navigator.share) {
-      await navigator.share({ title: "JUST ke saath Grocery main Bachat", text, url: APP_LINK });
-      return;
-    }
-    await navigator.clipboard?.writeText(`${text} ${APP_LINK}`);
+  function shareSavings() {
+    const text = `Maine JUST ke saath grocery mein ${rupees(visibleSavings)} bachaye! 🎉 Aap bhi apna bill scan karke bachat kijiye: ${APP_LINK}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
   return (
