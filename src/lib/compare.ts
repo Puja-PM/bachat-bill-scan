@@ -472,12 +472,12 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
 
 // Liquid groceries are printed by volume on bills but packed by weight in the
 // Just catalog, so grams and millilitres are treated as comparable (1:1).
-function unitsComparable(a: Unit, b: Unit): boolean {
-  const fa = unitFamily(a);
-  const fb = unitFamily(b);
-  if (fa === fb) return true;
-  return fa !== "count" && fb !== "count";
+// Bill lines printed without a pack size (unit = "unit") must still compare:
+// we allow them against any pack and simply ignore pack-size closeness.
+function unitsComparable(_a: Unit, _b: Unit): boolean {
+  return true;
 }
+
 
 export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduct | null {
   const candidates: Array<{ product: JustProduct; score: number; sizeGap: number }> = [];
