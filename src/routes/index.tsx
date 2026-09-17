@@ -152,10 +152,7 @@ function ScannerApp() {
       <header className="bg-[image:var(--header-gradient)] px-5 py-6 text-primary-foreground shadow-[var(--shadow-pop)] sm:py-7">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
           <div>
-            <h1 className="max-w-[17rem] font-display text-[1.7rem] font-extrabold leading-[1.08] sm:max-w-none sm:text-3xl">
-              JUST ke saath Grocery main Bachat
-            </h1>
-            <p className="mt-2 flex items-center gap-1.5 text-sm font-medium opacity-85">
+            <p className="flex items-center gap-1.5 text-sm font-medium opacity-85">
               <MapPin className="h-4 w-4" /> Magarpatta &amp; Hadapsar
             </p>
           </div>
