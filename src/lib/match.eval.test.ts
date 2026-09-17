@@ -52,6 +52,7 @@ const CASES: Case[] = [
 
 function toItem(c: Case): ScannedItem {
   return {
+    id: c.line,
     name: c.line,
     raw_line: c.line,
     qty: c.qty ?? 0,
