@@ -210,9 +210,6 @@ const TYPE_WORDS = new Set([
   "bun",
   "rusk",
   "biscuits",
-  "atta",
-  "rice",
-  "paste",
 ]);
 
 // Pack form: a detergent bar is not a detergent powder, even though both are
