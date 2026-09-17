@@ -269,7 +269,19 @@ function PitchScreen({
   const visibleMartTotal = visibleRows.reduce((total, row) => total + row.item.price, 0);
   const visibleJustTotal = visibleRows.reduce((total, row) => total + (row.justPrice ?? 0), 0);
   const visibleSavingsPct = visibleMartTotal > 0 ? Math.round((visibleSavings / visibleMartTotal) * 100) : 0;
-  const moreCatalogItems = Math.max(0, catalogCount - visibleRows.length);
+  const moreCatalogItems = Math.max(0, catalog.length - visibleRows.length);
+  // Show real JUST product names from the price list instead of a vague count.
+  const shownIds = new Set(visibleRows.map((row) => String(row.match?.id ?? "")));
+  const otherProducts = Array.from(
+    new Map(
+      catalog
+        .filter((p) => !shownIds.has(String(p.id)))
+        .map((p) => {
+          const clean = p.name.replace(/^jus\+?\s*/i, "").trim();
+          return [clean.toLowerCase(), clean] as const;
+        }),
+    ).values(),
+  ).slice(0, 14);
 
   return (
     <div className="space-y-5">
