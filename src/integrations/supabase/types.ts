@@ -53,6 +53,39 @@ export type Database = {
         }
         Relationships: []
       }
+      match_cache: {
+        Row: {
+          cache_key: string
+          confidence: number | null
+          created_at: string
+          id: string
+          line_text: string
+          product_id: string | null
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          line_text: string
+          product_id?: string | null
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          line_text?: string
+          product_id?: string | null
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
