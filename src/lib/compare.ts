@@ -352,6 +352,52 @@ const SPECIALITY_WORDS = new Set([
   "spaghetti",
 ]);
 
+// Bill categories tell us the aisle even when the line is too cryptic to
+// state a product type ("GODREJ N1 LEM" in personal care is a soap).
+const PERSONAL_TYPES = new Set([
+  "soap",
+  "shampoo",
+  "lotion",
+  "toothpaste",
+  "cream",
+  "conditioner",
+  "deodorant",
+  "handwash",
+  "brush",
+  "sanitizer",
+  "bar",
+]);
+
+const HOME_TYPES = new Set([
+  "detergent",
+  "cleaner",
+  "dishwash",
+  "sponge",
+  "freshener",
+  "foil",
+  "tissue",
+  "napkin",
+]);
+
+type Domain = "personal" | "home" | "food";
+
+function domainOfCategory(category: string): Domain | null {
+  const c = (category || "").toLowerCase();
+  if (/personal|toiletr|cosmetic|beauty|bath|hygiene/.test(c)) return "personal";
+  if (/home care|household|cleaning|laundry|detergent/.test(c)) return "home";
+  if (/grocery|staple|spice|food|snack|oil|dairy|beverage|rice|atta/.test(c)) return "food";
+  return null;
+}
+
+function domainOfWords(wordSet: Set<string>): Domain | null {
+  for (const word of wordSet) {
+    if (PERSONAL_TYPES.has(word)) return "personal";
+    if (HOME_TYPES.has(word)) return "home";
+  }
+  for (const word of wordSet) if (TYPE_WORDS.has(word)) return "food";
+  return null;
+}
+
 function words(value: string): string[] {
   const tokens = value
     .toLowerCase()
@@ -445,6 +491,10 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     const phrases = [...p.keywords, p.name];
     // A detergent bar must map to a bar, not to the powder or the liquid.
     const productWords = new Set(words(phrases.join(" ")));
+    // A personal-care bill line never pairs with a food SKU, and vice versa.
+    const itemDomain = domainOfWords(new Set(words(item.name))) ?? domainOfCategory(item.category);
+    const productDomain = domainOfWords(productWords);
+    if (itemDomain && productDomain && itemDomain !== productDomain) continue;
     const productForm = formOf(productWords);
     if (itemForm && productForm && itemForm !== productForm) continue;
     const base = Math.max(
