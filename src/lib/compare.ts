@@ -347,7 +347,7 @@ export function rupees(n: number): string {
 
 export function compare(items: ScannedItem[], catalog: JustProduct[]): ComparisonSummary {
   const rows: ComparisonRow[] = items.map((item) => {
-    if (isOutOfScope(item.category)) {
+    if (isOutOfScope(item.category, item.name)) {
       return {
         item,
         match: null,
