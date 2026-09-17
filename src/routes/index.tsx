@@ -52,6 +52,30 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+// Phone photos are 4-8 MP; shrinking them before upload cuts scan time a lot
+// while keeping receipt text readable.
+const MAX_EDGE = 1600;
+
+async function prepareFile(file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) return fileToDataUrl(file);
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return fileToDataUrl(file);
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+    return canvas.toDataURL("image/jpeg", 0.72);
+  } catch {
+    return fileToDataUrl(file);
+  }
+}
+
 function ScannerApp() {
   const scan = useServerFn(scanReceipt);
   const [step, setStep] = useState<Step>("capture");
@@ -70,7 +94,7 @@ function ScannerApp() {
     setStep("scanning");
     try {
       const files = Array.from(fileList).slice(0, 4);
-      const images = await Promise.all(files.map(fileToDataUrl));
+      const images = await Promise.all(files.map(prepareFile));
       const [result, catalogRes] = await Promise.all([
         scan({ data: { images } }),
         supabase.from("just_products").select("*").eq("active", true),
@@ -209,7 +233,10 @@ function PitchScreen({
 }) {
   const [showQr, setShowQr] = useState(false);
   const positive = summary.savings >= 0;
-  const availableRows = summary.rows.filter((row) => row.justPrice !== null);
+  const availableRows = summary.rows
+    .filter((row) => row.justPrice !== null)
+    // Biggest JUST savings first, then the lines where the mart wins.
+    .sort((a, b) => b.diff - a.diff);
   const unavailableRows = summary.rows.filter((row) => row.justPrice === null);
 
   return (
