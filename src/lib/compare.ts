@@ -162,6 +162,74 @@ const SYNONYMS: Record<string, string> = {
   heeng: "hing",
   wheat: "atta",
   gehun: "atta",
+  hin: "hing",
+  hng: "hing",
+  lem: "lime",
+  nimbu: "lime",
+  lemon: "lime",
+  saffolla: "saffola",
+  papadam: "papad",
+  papd: "papad",
+};
+
+// Bills glue words together ("WADAKOLAM"); split them before matching.
+const GLUED: Record<string, string> = {
+  wadakolam: "wada kolam",
+  sonamasoori: "sona masoori",
+  gingergarlic: "ginger garlic",
+  kolamrice: "kolam rice",
+  wholewheat: "whole atta",
+};
+
+// Brand names. Useful supporting evidence, but a shared brand alone never
+// makes a match (Godrej soap must not pair with Godrej frozen peas).
+const BRAND_WORDS = new Set([
+  "godrej",
+  "ezee",
+  "lijjat",
+  "vandevi",
+  "saffola",
+  "fortune",
+  "aashirvaad",
+  "tata",
+  "amul",
+  "nivea",
+  "dettol",
+  "lux",
+  "dove",
+  "santoor",
+  "cinthol",
+  "parachute",
+  "harpic",
+  "surf",
+  "rin",
+  "tide",
+  "wheel",
+  "real",
+  "britannia",
+  "nescafe",
+  "sprite",
+  "maggi",
+  "colgate",
+  "everest",
+  "mdh",
+  "oetker",
+  "funfoods",
+  "columbian",
+  "mother",
+  "recipe",
+]);
+
+// What a brand sells, for bill lines too short to state the product type
+// ("SAFFOLLA ACTIVE" is cooking oil).
+const BRAND_IMPLIES: Record<string, string> = {
+  saffola: "oil",
+  fortune: "oil",
+  dhara: "oil",
+  lijjat: "papad",
+  harpic: "cleaner",
+  colgate: "toothpaste",
+  parachute: "oil",
 };
 
 // Generic product-type nouns: meaningful, but weak evidence on their own.
@@ -285,12 +353,15 @@ const SPECIALITY_WORDS = new Set([
 ]);
 
 function words(value: string): string[] {
-  return value
+  const tokens = value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .split(" ")
+    .flatMap((word) => (GLUED[word] ?? word).split(" "))
     .filter((word) => word.length > 2 && !/^\d+$/.test(word) && !MATCH_STOP_WORDS.has(word))
     .map((word) => SYNONYMS[word] ?? word);
+  const implied = tokens.flatMap((word) => (BRAND_IMPLIES[word] ? [BRAND_IMPLIES[word]] : []));
+  return [...tokens, ...implied];
 }
 
 function formOf(wordSet: Set<string>): string | null {
@@ -330,13 +401,15 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
 
   const shared = [...phraseWords].filter((word) => itemWords.has(word));
   if (shared.length === 0) return 0;
+  // Shared brand only, nothing about the product itself.
+  if (shared.every((word) => BRAND_WORDS.has(word))) return 0;
 
   // The bill line states a product type the catalog item never mentions:
   // brand overlap only, so treat it as very weak evidence.
   const typeless = itemTypes.length > 0 && phraseTypes.length === 0;
 
 
-  const strong = shared.filter((word) => !TYPE_WORDS.has(word)).length;
+  const strong = shared.filter((word) => !TYPE_WORDS.has(word) && !BRAND_WORDS.has(word)).length;
   const weak = shared.length - strong;
   const coverage = shared.length / Math.min(itemWords.size, phraseWords.size);
 
