@@ -94,7 +94,7 @@ function ScannerApp() {
     setStep("scanning");
     try {
       const files = Array.from(fileList).slice(0, 4);
-      const images = await Promise.all(files.map(fileToDataUrl));
+      const images = await Promise.all(files.map(prepareFile));
       const [result, catalogRes] = await Promise.all([
         scan({ data: { images } }),
         supabase.from("just_products").select("*").eq("active", true),
