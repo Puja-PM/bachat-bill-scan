@@ -188,7 +188,7 @@ function ScannerApp() {
         )}
 
         {step === "pitch" && (
-          <PitchScreen store={store} summary={summary} onReset={reset} />
+          <PitchScreen store={store} summary={summary} catalogCount={catalog.length} onReset={reset} />
         )}
       </main>
 
@@ -250,53 +250,60 @@ function CaptureScreen({ onCamera, onGallery }: { onCamera: () => void; onGaller
 function PitchScreen({
   store,
   summary,
+  catalogCount,
   onReset,
 }: {
   store: string;
   summary: ReturnType<typeof compare>;
+  catalogCount: number;
   onReset: () => void;
 }) {
   const [showQr, setShowQr] = useState(false);
-  const positive = summary.savings >= 0;
-  const availableRows = summary.rows
-    .filter((row) => row.justPrice !== null)
-    // Biggest JUST savings first, then the lines where the mart wins.
+  const topSavingRows = summary.rows
+    .filter((row) => row.justPrice !== null && row.diff > 0)
+    // Only the biggest JUST wins should be visible to the customer.
     .sort((a, b) => b.diff - a.diff);
-  const unavailableRows = summary.rows.filter((row) => row.justPrice === null);
+  const visibleRows = topSavingRows.slice(0, 5);
+  const hiddenSavingCount = Math.max(0, topSavingRows.length - visibleRows.length);
+  const visibleSavings = visibleRows.reduce((total, row) => total + row.diff, 0);
+  const visibleMartTotal = visibleRows.reduce((total, row) => total + row.item.price, 0);
+  const visibleJustTotal = visibleRows.reduce((total, row) => total + (row.justPrice ?? 0), 0);
+  const visibleSavingsPct = visibleMartTotal > 0 ? Math.round((visibleSavings / visibleMartTotal) * 100) : 0;
+  const moreCatalogItems = Math.max(0, catalogCount - visibleRows.length);
 
   return (
     <div className="space-y-5">
-      <div className="overflow-hidden rounded-2xl bg-primary text-primary-foreground shadow-[var(--shadow-pop)]">
+      <div className="overflow-hidden rounded-2xl bg-secondary text-secondary-foreground shadow-[var(--shadow-pop)]">
         <div className="px-5 py-3 text-xs font-semibold uppercase opacity-80">
           Just Magarpatta / Hadapsar
         </div>
-        <div className="bg-primary-foreground/5 px-5 pb-6 text-center">
+        <div className="bg-secondary-foreground/10 px-5 pb-6 text-center">
           <Sparkles className="mx-auto mb-1 h-7 w-7 text-accent" />
-          <p className="font-display text-base font-bold uppercase">Aapki total bachat</p>
+          <p className="font-display text-base font-bold uppercase">Top 5 JUST bachat</p>
           <div className="mt-1 flex flex-wrap items-end justify-center gap-3">
             <span className="font-display text-6xl font-extrabold leading-none">
-              {rupees(Math.abs(summary.savings))}
+              {rupees(visibleSavings)}
             </span>
             <span className="mb-2 rounded-full bg-accent px-3 py-1 text-sm font-bold text-accent-foreground">
-              {Math.abs(summary.savingsPct)}% {positive ? "OFF" : "ZYADA"}
+              {visibleSavingsPct}% OFF
             </span>
           </div>
           <p className="mt-2 text-sm font-semibold opacity-90">
-            {positive ? "Is bill par direct savings" : "Is bill par Just thoda mehenga nikla"}
+            Sirf sabse zyada saving wale items dikhaye gaye hain
           </p>
-          <div className="mt-5 space-y-1 border-t border-primary-foreground/20 pt-4 text-left text-sm">
-            <Row label={`${store} total (matched items)`} value={rupees(summary.martTotal)} />
-            <Row label="Just app equivalent price" value={rupees(summary.justTotal)} />
+          <div className="mt-5 space-y-1 border-t border-secondary-foreground/20 pt-4 text-left text-sm">
+            <Row label={`${store} total (top 5)`} value={rupees(visibleMartTotal)} />
+            <Row label="Just app equivalent price" value={rupees(visibleJustTotal)} />
           </div>
         </div>
       </div>
 
       <h2 className="font-display text-lg font-bold">
-        JUST par available ({availableRows.length})
+        Top JUST savings ({visibleRows.length})
       </h2>
 
       <div className="space-y-3">
-        {availableRows.map((row) => (
+        {visibleRows.map((row) => (
           <div key={row.item.id} className="rounded-2xl border border-border bg-card p-4">
             <div className="flex justify-between gap-3 text-sm">
               <span className="font-semibold uppercase text-muted-foreground">MART</span>
@@ -322,26 +329,30 @@ function PitchScreen({
         ))}
       </div>
 
-      {unavailableRows.length > 0 && (
-        <section className="border-t border-border pt-5">
-          <h2 className="font-display text-lg font-bold text-muted-foreground">
-            JUST par available nahi ({unavailableRows.length})
-          </h2>
-          <div className="mt-3 space-y-3">
-            {unavailableRows.map((row) => (
-              <div key={row.item.id} className="rounded-2xl border border-border bg-muted p-4">
-                <div className="flex justify-between gap-3 text-sm">
-                  <span className="flex-1 font-medium">
-                    {row.item.name} ({formatQty(row.item.qty, row.item.unit)}
-                    {row.item.count > 1 ? ` × ${row.item.count}` : ""})
-                  </span>
-                  <span className="font-bold">{rupees(row.item.price)}</span>
-                </div>
-                <div className="mt-2">
-                  <Tag status={row.status}>{row.label}</Tag>
-                </div>
-              </div>
-            ))}
+      {visibleRows.length === 0 && (
+        <div className="rounded-2xl border border-border bg-card p-5 text-center">
+          <p className="font-display text-lg font-bold">Is bill par top savings nahi mili</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Naya bill scan karke Just ke cheaper items check karein.
+          </p>
+        </div>
+      )}
+
+      {(moreCatalogItems > 0 || hiddenSavingCount > 0) && (
+        <section className="rounded-2xl border border-secondary/30 bg-success-soft p-5 text-success">
+          <p className="font-display text-2xl font-extrabold leading-tight">
+            {moreCatalogItems}+ aur grocery items JUST par available hain
+          </p>
+          <p className="mt-2 text-sm font-semibold">
+            {hiddenSavingCount > 0
+              ? `Is bill mein ${hiddenSavingCount} aur cheaper JUST match mile.`
+              : "Atta, rice, oil, masale, soaps, detergent aur daily essentials par bhi bachat dekhein."}
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold sm:grid-cols-4">
+            <span className="rounded-full bg-card px-3 py-2 text-center">Atta &amp; Rice</span>
+            <span className="rounded-full bg-card px-3 py-2 text-center">Oil &amp; Masale</span>
+            <span className="rounded-full bg-card px-3 py-2 text-center">Soaps</span>
+            <span className="rounded-full bg-card px-3 py-2 text-center">Cleaning</span>
           </div>
         </section>
       )}
