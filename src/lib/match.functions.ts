@@ -84,11 +84,6 @@ export const resolveMatches = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => MatchInput.parse(input))
   .handler(async ({ data }): Promise<Array<MatchVerdict | null>> => {
     const lines = data.lines;
-    const verdicts: MatchVerdict[] = lines.map(() => ({
-      productId: null,
-      confidence: 0,
-      reason: "",
-    }));
     // `undefined` marks "no verdict, keep the deterministic pick".
     const resolved: Array<MatchVerdict | undefined> = lines.map(() => undefined);
 
