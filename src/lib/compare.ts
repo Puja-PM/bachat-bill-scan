@@ -402,6 +402,12 @@ function domainOfWords(wordSet: Set<string>): Domain | null {
   return null;
 }
 
+// Short brand shorthands on bills that name a product type implicitly.
+const PHRASE_IMPLIES: Array<[RegExp, string]> = [
+  [/godrej\s*(no\.?\s*)?n?\s*1\b/i, "soap"],
+  [/\bmother'?s?\b[^a-z]*(recipe)?[^a-z]*(gingr|ginger|ging)\b/i, "garlic paste"],
+];
+
 function words(value: string): string[] {
   const tokens = value
     .toLowerCase()
@@ -411,8 +417,12 @@ function words(value: string): string[] {
     .filter((word) => word.length > 2 && !/^\d+$/.test(word) && !MATCH_STOP_WORDS.has(word))
     .map((word) => SYNONYMS[word] ?? word);
   const implied = tokens.flatMap((word) => (BRAND_IMPLIES[word] ? [BRAND_IMPLIES[word]] : []));
-  return [...tokens, ...implied];
+  const phraseImplied = PHRASE_IMPLIES.filter(([re]) => re.test(value)).flatMap(([, add]) =>
+    add.split(" "),
+  );
+  return [...tokens, ...implied, ...phraseImplied];
 }
+
 
 function formOf(wordSet: Set<string>): string | null {
   for (const word of wordSet) {
