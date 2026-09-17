@@ -244,6 +244,8 @@ const SPECIALITY_WORDS = new Set([
   "bleaching",
   "agarbatti",
   "incense",
+  // Packed bill lines should map to the packed JUST SKU, not the loose variant.
+  "loose",
 ]);
 
 function words(value: string): string[] {
