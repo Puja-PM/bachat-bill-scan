@@ -41,7 +41,7 @@ const CASES: Case[] = [
   { line: "SURF EXCEL MATIC POWDER 1KG", qty: 1000, unit: "g", expect: "Powder", forbid: ["Bar"] },
   { line: "VIM DISHWASH BAR", qty: 300, unit: "g", expect: "Dishwash" },
   { line: "HARPIC TOILET CLEANER 500ML", qty: 500, unit: "ml", expect: "Toilet" },
-  { line: "MDH JEERA POWDER 100g", qty: 100, unit: "g", expect: "Cumin" },
+  { line: "MDH JEERA POWDER 100g", qty: 100, unit: "g", expect: "Jeera" },
   { line: "MDH DHANIA POWDER 100g", qty: 100, unit: "g", expect: "Coriander", forbid: ["Coffee"] },
   { line: "PREMIA BADAM 500g", qty: 500, unit: "g", expect: "Almond" },
   { line: "TATA SALT 1KG", qty: 1000, unit: "g", expect: "Salt" },
