@@ -149,27 +149,43 @@ function ScannerApp() {
 
   return (
     <div className="min-h-screen bg-background pb-16">
-      <header className="bg-[image:var(--header-gradient)] px-5 py-6 text-primary-foreground shadow-[var(--shadow-pop)] sm:py-7">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          <div>
-            <p className="flex items-center gap-1.5 text-sm font-medium opacity-85">
-              <MapPin className="h-4 w-4" /> Magarpatta &amp; Hadapsar
-            </p>
+      {step !== "capture" && (
+        <header className="bg-[image:var(--header-gradient)] px-5 py-6 text-primary-foreground shadow-[var(--shadow-pop)] sm:py-7">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
+            <div>
+              <p className="flex items-center gap-1.5 text-sm font-medium opacity-85">
+                <MapPin className="h-4 w-4" /> Magarpatta &amp; Hadapsar
+              </p>
+            </div>
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="h-12 w-12 shrink-0 rounded-xl border border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground shadow-[var(--shadow-pop)] hover:bg-primary-foreground/20 hover:text-primary-foreground"
+            >
+              <Link to="/catalog" aria-label="Just catalog manage karein">
+                <Settings className="h-6 w-6" />
+              </Link>
+            </Button>
           </div>
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="h-12 w-12 shrink-0 rounded-xl border border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground shadow-[var(--shadow-pop)] hover:bg-primary-foreground/20 hover:text-primary-foreground"
-          >
-            <Link to="/catalog" aria-label="Just catalog manage karein">
-              <Settings className="h-6 w-6" />
-            </Link>
-          </Button>
-        </div>
-      </header>
+        </header>
+      )}
 
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className={step === "capture" ? "mx-auto max-w-3xl px-4 pb-6 pt-5 sm:px-6 sm:pb-8" : "mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8"}>
+        {step === "capture" && (
+          <div className="mb-4 flex justify-end">
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-xl text-muted-foreground hover:bg-muted"
+            >
+              <Link to="/catalog" aria-label="Just catalog manage karein">
+                <Settings className="h-5 w-5" />
+              </Link>
+            </Button>
+          </div>
+        )}
         {error && (
           <div className="mb-4 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
