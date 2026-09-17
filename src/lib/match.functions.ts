@@ -124,53 +124,10 @@ export const resolveMatches = createServerFn({ method: "POST" })
       const key = process.env["LOVABLE_API_KEY"];
       if (!key) throw new Error("AI service is not configured.");
 
-      const payload = pending.map((x, i) => ({
-        line_index: i,
-        bill_line: x.line.line,
-        bill_pack_size: x.line.size,
-        bill_category: x.line.category,
-        candidates: x.line.candidates.map((c) => ({ id: c.id, product: c.label })),
-      }));
-
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Lovable-API-Key": key,
-          "X-Lovable-AIG-SDK": "fetch",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3.8-flash",
-          temperature: 0,
-          top_p: 1,
-          seed: 7,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: JSON.stringify(payload) },
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: { name: "verdicts", strict: true, schema },
-          },
-        }),
-      });
-
-      if (res.status === 429) throw new Error("Bahut requests ho gayi, thodi der baad try karein.");
-      if (res.status === 402) throw new Error("AI credits khatam ho gaye hain.");
-      if (!res.ok) throw new Error(`AI matching failed (${res.status})`);
-
-      const body = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const text = body.choices?.[0]?.message?.content ?? "{}";
-      const parsed = JSON.parse(text) as {
-        verdicts?: Array<{
-          line_index: number;
-          product_id: string | null;
-          confidence: number;
-          reason: string;
-        }>;
-      };
+      const judged = await judgeLines(
+        pending.map((x) => x.line),
+        key,
+      );
 
       const rows: Array<{
         cache_key: string;
@@ -180,35 +137,27 @@ export const resolveMatches = createServerFn({ method: "POST" })
         reason: string;
       }> = [];
 
-      for (const v of parsed.verdicts ?? []) {
-        const target = pending[v.line_index];
-        if (!target) continue;
-        const allowed = new Set(target.line.candidates.map((c) => c.id));
-        const productId =
-          v.product_id && allowed.has(v.product_id) && (v.confidence ?? 0) >= 0.5
-            ? v.product_id
-            : null;
-        resolved[target.index] = {
-          productId,
-          confidence: v.confidence ?? 0,
-          reason: v.reason ?? "",
-        };
+      judged.forEach((verdict, i) => {
+        const target = pending[i];
+        if (!target || !verdict) return;
+        resolved[target.index] = verdict;
         const cacheKey = keys[target.index];
         if (cacheKey) {
           rows.push({
             cache_key: cacheKey,
             line_text: target.line.line,
-            product_id: productId,
-            confidence: v.confidence ?? 0,
-            reason: v.reason ?? "",
+            product_id: verdict.productId,
+            confidence: verdict.confidence,
+            reason: verdict.reason,
           });
         }
-      }
+      });
 
       if (db && rows.length > 0) {
         await db.from("match_cache").upsert(rows, { onConflict: "cache_key" });
       }
     }
+
 
     // null = no verdict for that line; the app keeps its deterministic pick.
     return lines.map((line, i) => {
