@@ -49,9 +49,12 @@ const OUT_OF_SCOPE_WORDS = [
 export function isOutOfScope(category: string, name = ""): boolean {
   const c = (category || "").toLowerCase();
   const n = (name || "").toLowerCase();
+  // Dry fruits / nuts are packaged grocery, not fresh produce.
+  if (/\bdry\b|\bnut/.test(c)) return OUT_OF_SCOPE_WORDS.some((x) => n.includes(x));
   if (EXCLUDED_CATEGORIES.some((x) => c.includes(x))) return true;
   return OUT_OF_SCOPE_WORDS.some((x) => n.includes(x));
 }
+
 
 
 function unitFamily(u: Unit): "weight" | "volume" | "count" {
