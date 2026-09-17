@@ -511,6 +511,11 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     const productText = phrases.join(" ").toLowerCase();
     if (productText.includes("loose") && !item.name.toLowerCase().includes("loose")) score -= 0.8;
 
+    // The catalog keyword names the exact national brand on the bill
+    // (Lux -> Rose Glow Beauty Soap): the strongest signal we have.
+    const itemBrands = [...new Set(words(item.name))].filter((w) => BRAND_WORDS.has(w));
+    if (itemBrands.some((b) => productWords.has(b))) score += 0.6;
+
     // Bill says "paste"/"bar"/"spray" but the catalog item states no form:
     // weaker evidence than a catalog item stating the same form.
     if (itemForm && !productForm) score -= 0.6;
