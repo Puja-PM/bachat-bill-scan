@@ -12,9 +12,13 @@ import {
   Sparkles,
   MapPin,
   ScanLine,
+  Share2,
+  Trophy,
+  Coins,
 } from "lucide-react";
 
 import scanAssistant from "@/assets/bill-scan-assistant.png";
+import savingsCelebration from "@/assets/savings-celebration.png";
 import { Button } from "@/components/ui/button";
 import { scanReceipt } from "@/lib/scan.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -301,61 +305,82 @@ function PitchScreen({
     ).values(),
   ).slice(0, 14);
 
+  async function shareSavings() {
+    const text = `Maine JUST par ${rupees(visibleSavings)} bachaye!`;
+    if (navigator.share) {
+      await navigator.share({ title: "JUST ke saath Grocery main Bachat", text, url: APP_LINK });
+      return;
+    }
+    await navigator.clipboard?.writeText(`${text} ${APP_LINK}`);
+  }
+
   return (
-    <div className="space-y-5">
-      <div className="overflow-hidden rounded-2xl bg-secondary text-secondary-foreground shadow-[var(--shadow-pop)]">
-        <div className="px-5 py-3 text-xs font-semibold uppercase opacity-80">
+    <div className="space-y-5 pb-5">
+      <section className="savings-stage relative overflow-hidden rounded-2xl border-2 border-accent bg-[image:var(--savings-gradient)] text-secondary-foreground shadow-[var(--shadow-savings)]">
+        <div className="relative z-10 px-5 py-3 text-xs font-extrabold uppercase tracking-normal opacity-90">
           Just Magarpatta / Hadapsar
         </div>
-        <div className="bg-secondary-foreground/10 px-5 pb-6 text-center">
-          <Sparkles className="mx-auto mb-1 h-7 w-7 text-accent" />
-          <p className="font-display text-base font-bold uppercase">Top 5 JUST bachat</p>
-          <div className="mt-1 flex flex-wrap items-end justify-center gap-3">
-            <span className="font-display text-6xl font-extrabold leading-none">
+        <div className="relative z-10 px-5 pb-5 pt-3 text-center sm:px-8 sm:pb-7">
+          <div className="relative mx-auto min-h-44 sm:min-h-52">
+            <div className="relative z-10 pt-5 sm:pr-[32%]">
+              <Sparkles className="mx-auto mb-1 h-7 w-7 text-accent" />
+              <p className="font-display text-base font-extrabold uppercase">Top 5 JUST bachat</p>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                <span className="savings-amount font-display text-6xl font-extrabold leading-none sm:text-7xl">
               {rupees(visibleSavings)}
-            </span>
-            <span className="mb-2 rounded-full bg-accent px-3 py-1 text-sm font-bold text-accent-foreground">
-              {visibleSavingsPct}% OFF
-            </span>
+                </span>
+                <span className="rounded-full bg-accent px-3 py-1 text-sm font-extrabold text-accent-foreground shadow-sm">
+                  {visibleSavingsPct}% OFF
+                </span>
+              </div>
+            </div>
+            <img
+              src={savingsCelebration}
+              alt="JUST savings celebrate karti hui assistant"
+              width={816}
+              height={816}
+              className="pointer-events-none absolute -bottom-8 -right-12 hidden w-64 object-contain sm:block"
+            />
           </div>
-          <p className="mt-2 text-sm font-semibold opacity-90">
+          <p className="relative z-20 mt-1 text-sm font-bold opacity-95">
             Sirf sabse zyada saving wale items dikhaye gaye hain
           </p>
-          <div className="mt-5 space-y-1 border-t border-secondary-foreground/20 pt-4 text-left text-sm">
+          <div className="relative z-20 mt-5 space-y-1 border-t border-secondary-foreground/25 pt-4 text-left text-sm sm:text-base">
             <Row label={`${store} total (top 5)`} value={rupees(visibleMartTotal)} />
             <Row label="Just app equivalent price" value={rupees(visibleJustTotal)} />
           </div>
         </div>
-      </div>
+      </section>
 
-      <h2 className="font-display text-lg font-bold">
-        Top JUST savings ({visibleRows.length})
+      <h2 className="flex items-center gap-2 font-display text-xl font-extrabold">
+        Top JUST savings ({visibleRows.length}) <Coins className="h-5 w-5 text-warning" />
       </h2>
 
-      <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         {visibleRows.map((row) => (
-          <div key={row.item.id} className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex justify-between gap-3 text-sm">
-              <span className="font-semibold uppercase text-muted-foreground">MART</span>
-              <span className="flex-1 font-medium">
-                {row.item.name} ({formatQty(row.item.qty, row.item.unit)}
-                {row.item.count > 1 ? ` × ${row.item.count}` : ""})
-              </span>
-              <span className="font-bold">{rupees(row.item.price)}</span>
+          <article key={row.item.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card-soft)]">
+            <div className="px-4 pb-3 pt-4 text-center">
+              <p className="savings-card-amount font-display text-4xl font-extrabold leading-none">
+                {rupees(row.diff)}
+              </p>
+              <p className="mt-1 font-display text-sm font-extrabold uppercase text-primary">Grocery bachat</p>
             </div>
-            {row.match && row.justPrice !== null && (
-              <div className="mt-1 flex justify-between gap-3 text-sm">
-                <span className="font-semibold uppercase text-secondary">JUST</span>
-                <span className="flex-1 font-medium">
-                  {row.match.name} (Equal {formatQty(row.item.qty * row.item.count, row.item.unit)})
-                </span>
-                <span className="font-bold">{rupees(row.justPrice)}</span>
+            <div className="flex min-h-24 items-center gap-3 px-4 pb-3">
+              <div className="flex h-16 w-14 shrink-0 items-center justify-center rounded-lg bg-success-soft font-display text-xl font-extrabold text-success">
+                J+
               </div>
-            )}
-            <div className="mt-2">
-              <Tag status={row.status}>{row.label}</Tag>
+              <div className="min-w-0 text-left">
+                <p className="line-clamp-2 text-sm font-bold uppercase">{row.item.name}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {row.match?.name} (Equal {formatQty(row.item.qty * row.item.count, row.item.unit)})
+                </p>
+              </div>
             </div>
-          </div>
+            <div className="mx-4 flex items-center justify-between border-t border-border py-3 text-sm">
+              <span>Mart <strong>{rupees(row.item.price)}</strong></span>
+              <span className="text-secondary">JUST <strong>{rupees(row.justPrice ?? 0)}</strong></span>
+            </div>
+          </article>
         ))}
       </div>
 
@@ -370,10 +395,10 @@ function PitchScreen({
 
       {otherProducts.length > 0 && (
         <section className="rounded-2xl border border-secondary/30 bg-success-soft p-5 text-success">
-          <p className="font-display text-2xl font-extrabold leading-tight">
-            {moreCatalogItems}+ aur grocery items JUST par available hain
+          <p className="font-display text-xl font-extrabold leading-tight">
+            JUST par aur bhi bahut kuch
           </p>
-          <p className="mt-2 text-sm font-semibold">Jaise ki:</p>
+          <p className="mt-1 text-sm font-semibold">{moreCatalogItems}+ products available — jaise ki:</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
             {otherProducts.map((name) => (
               <span key={name} className="rounded-full bg-card px-3 py-2">
@@ -393,20 +418,30 @@ function PitchScreen({
           <p className="text-xs text-muted-foreground">Swiggy Instamart · Just private label</p>
         </div>
       ) : (
-        <button
+        <Button
           onClick={() => setShowQr(true)}
-          className="w-full rounded-2xl bg-secondary px-6 py-5 font-display text-lg font-bold text-secondary-foreground shadow-[var(--shadow-pop)]"
+          className="h-auto w-full rounded-xl bg-primary px-6 py-4 font-display text-lg font-extrabold text-primary-foreground shadow-[var(--shadow-pop)] hover:bg-primary/90"
         >
           Install Just App &amp; Claim Savings
-        </button>
+        </Button>
       )}
 
-      <button
+      <Button
+        type="button"
+        onClick={shareSavings}
+        className="h-auto w-full rounded-none bg-secondary px-6 py-4 font-display text-lg font-extrabold uppercase text-secondary-foreground hover:bg-secondary/90"
+      >
+        <Share2 className="h-5 w-5" /> Share your bachat
+      </Button>
+
+      <Button
+        type="button"
+        variant="ghost"
         onClick={onReset}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-border py-3 text-sm font-semibold text-muted-foreground"
+        className="h-auto w-full rounded-xl border border-border py-3 text-sm font-semibold text-muted-foreground"
       >
         <RotateCcw className="h-4 w-4" /> Naya Bill Scan Karein
-      </button>
+      </Button>
     </div>
   );
 }
