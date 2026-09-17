@@ -52,6 +52,30 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+// Phone photos are 4-8 MP; shrinking them before upload cuts scan time a lot
+// while keeping receipt text readable.
+const MAX_EDGE = 1600;
+
+async function prepareFile(file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) return fileToDataUrl(file);
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return fileToDataUrl(file);
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+    return canvas.toDataURL("image/jpeg", 0.72);
+  } catch {
+    return fileToDataUrl(file);
+  }
+}
+
 function ScannerApp() {
   const scan = useServerFn(scanReceipt);
   const [step, setStep] = useState<Step>("capture");
