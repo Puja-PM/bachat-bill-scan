@@ -132,6 +132,14 @@ function ScannerApp() {
     }
   }
 
+  function reset() {
+    setItems([]);
+    setResolved([]);
+    setStep("capture");
+    setError(null);
+  }
+
+
 
 
   return (
