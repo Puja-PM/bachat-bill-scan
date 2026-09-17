@@ -247,10 +247,36 @@ function words(value: string): string[] {
     .map((word) => SYNONYMS[word] ?? word);
 }
 
+function formOf(wordSet: Set<string>): string | null {
+  for (const word of wordSet) {
+    if (!FORM_WORDS.has(word)) continue;
+    if (word === "cake") return "bar";
+    if (word === "granules") return "powder";
+    return word;
+  }
+  return null;
+}
+
 function matchScore(itemName: string, phrase: string): number {
   const itemWords = new Set(words(itemName));
   const phraseWords = new Set(words(phrase));
   if (itemWords.size === 0 || phraseWords.size === 0) return 0;
+
+  // Different product types entirely (cooking oil vs handwash): never a match.
+  const itemTypes = [...itemWords].filter((w) => TYPE_WORDS.has(w));
+  const phraseTypes = [...phraseWords].filter((w) => TYPE_WORDS.has(w));
+  if (
+    itemTypes.length > 0 &&
+    phraseTypes.length > 0 &&
+    !itemTypes.some((w) => phraseTypes.includes(w))
+  ) {
+    return 0;
+  }
+
+  // Same product, different pack form (detergent bar vs detergent powder).
+  const itemForm = formOf(itemWords);
+  const phraseForm = formOf(phraseWords);
+  if (itemForm && phraseForm && itemForm !== phraseForm) return 0;
 
   const shared = [...phraseWords].filter((word) => itemWords.has(word));
   if (shared.length === 0) return 0;
@@ -268,6 +294,7 @@ function matchScore(itemName: string, phrase: string): number {
 
   return score > 0.35 ? score : 0;
 }
+
 
 // Liquid groceries are printed by volume on bills but packed by weight in the
 // Just catalog, so grams and millilitres are treated as comparable (1:1).
