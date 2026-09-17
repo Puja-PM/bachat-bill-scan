@@ -82,7 +82,7 @@ function cacheClient() {
 
 export const resolveMatches = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => MatchInput.parse(input))
-  .handler(async ({ data }): Promise<MatchVerdict[]> => {
+  .handler(async ({ data }): Promise<Array<MatchVerdict | null>> => {
     const lines = data.lines;
     const verdicts: MatchVerdict[] = lines.map(() => ({
       productId: null,
@@ -215,5 +215,13 @@ export const resolveMatches = createServerFn({ method: "POST" })
       }
     }
 
-    return verdicts.map((fallback, i) => resolved[i] ?? { ...fallback, reason: "no-candidates" });
+    // null = no verdict for that line; the app keeps its deterministic pick.
+    return lines.map((line, i) => {
+      const r = resolved[i];
+      if (r) return r;
+      if (line.candidates.length === 0) {
+        return { productId: null, confidence: 1, reason: "no candidates" };
+      }
+      return null;
+    });
   });
