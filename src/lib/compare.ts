@@ -24,10 +24,35 @@ export const EXCLUDED_CATEGORIES = [
   "furniture",
 ];
 
-export function isOutOfScope(category: string): boolean {
+// Non-grocery hardware the bill's own category often mislabels (e.g. a
+// storage container printed as "kitchen"). Blocked by name too.
+const OUT_OF_SCOPE_WORDS = [
+  "container",
+  "lunch box",
+  "tiffin",
+  "casserole",
+  "bowl set",
+  "bucket",
+  "mug",
+  "plate",
+  "hanger",
+  "broom",
+  "mop stick",
+  "storage box",
+  "jar set",
+  "flask",
+  "cooker",
+  "kadai",
+  "tawa",
+];
+
+export function isOutOfScope(category: string, name = ""): boolean {
   const c = (category || "").toLowerCase();
-  return EXCLUDED_CATEGORIES.some((x) => c.includes(x));
+  const n = (name || "").toLowerCase();
+  if (EXCLUDED_CATEGORIES.some((x) => c.includes(x))) return true;
+  return OUT_OF_SCOPE_WORDS.some((x) => n.includes(x));
 }
+
 
 function unitFamily(u: Unit): "weight" | "volume" | "count" {
   if (u === "g") return "weight";
