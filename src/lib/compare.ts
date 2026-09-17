@@ -370,9 +370,14 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     if (!unitsComparable(p.pack_unit, item.unit)) continue;
     const phrases = [...p.keywords, p.name];
     // A detergent bar must map to a bar, not to the powder or the liquid.
-    const productForm = formOf(new Set(words(phrases.join(" "))));
+    const productWords = new Set(words(phrases.join(" ")));
+    const productForm = formOf(productWords);
     if (itemForm && productForm && itemForm !== productForm) continue;
-    const base = Math.max(0, ...phrases.map((phrase) => matchScore(item.name, phrase)));
+    const base = Math.max(
+      0,
+      ...phrases.map((phrase) => matchScore(item.name, phrase, productWords)),
+    );
+
     if (base === 0) continue;
 
     const sameFamily = unitFamily(p.pack_unit) === unitFamily(item.unit);
