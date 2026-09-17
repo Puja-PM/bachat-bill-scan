@@ -162,6 +162,74 @@ const SYNONYMS: Record<string, string> = {
   heeng: "hing",
   wheat: "atta",
   gehun: "atta",
+  hin: "hing",
+  hng: "hing",
+  lem: "lime",
+  nimbu: "lime",
+  lemon: "lime",
+  saffolla: "saffola",
+  papadam: "papad",
+  papd: "papad",
+};
+
+// Bills glue words together ("WADAKOLAM"); split them before matching.
+const GLUED: Record<string, string> = {
+  wadakolam: "wada kolam",
+  sonamasoori: "sona masoori",
+  gingergarlic: "ginger garlic",
+  kolamrice: "kolam rice",
+  wholewheat: "whole atta",
+};
+
+// Brand names. Useful supporting evidence, but a shared brand alone never
+// makes a match (Godrej soap must not pair with Godrej frozen peas).
+const BRAND_WORDS = new Set([
+  "godrej",
+  "ezee",
+  "lijjat",
+  "vandevi",
+  "saffola",
+  "fortune",
+  "aashirvaad",
+  "tata",
+  "amul",
+  "nivea",
+  "dettol",
+  "lux",
+  "dove",
+  "santoor",
+  "cinthol",
+  "parachute",
+  "harpic",
+  "surf",
+  "rin",
+  "tide",
+  "wheel",
+  "real",
+  "britannia",
+  "nescafe",
+  "sprite",
+  "maggi",
+  "colgate",
+  "everest",
+  "mdh",
+  "oetker",
+  "funfoods",
+  "columbian",
+  "mother",
+  "recipe",
+]);
+
+// What a brand sells, for bill lines too short to state the product type
+// ("SAFFOLLA ACTIVE" is cooking oil).
+const BRAND_IMPLIES: Record<string, string> = {
+  saffola: "oil",
+  fortune: "oil",
+  dhara: "oil",
+  lijjat: "papad",
+  harpic: "cleaner",
+  colgate: "toothpaste",
+  parachute: "oil",
 };
 
 // Generic product-type nouns: meaningful, but weak evidence on their own.
@@ -284,13 +352,59 @@ const SPECIALITY_WORDS = new Set([
   "spaghetti",
 ]);
 
+// Bill categories tell us the aisle even when the line is too cryptic to
+// state a product type ("GODREJ N1 LEM" in personal care is a soap).
+const PERSONAL_TYPES = new Set([
+  "soap",
+  "shampoo",
+  "lotion",
+  "toothpaste",
+  "cream",
+  "conditioner",
+  "deodorant",
+  "handwash",
+  "brush",
+  "sanitizer",
+]);
+
+const HOME_TYPES = new Set([
+  "detergent",
+  "cleaner",
+  "dishwash",
+  "sponge",
+  "freshener",
+  "foil",
+  "tissue",
+  "napkin",
+]);
+
+type Domain = "personal" | "home" | "food";
+
+function domainOfCategory(category: string): Domain | null {
+  const c = (category || "").toLowerCase();
+  if (/personal|toiletr|cosmetic|beauty|bath|hygiene/.test(c)) return "personal";
+  if (/home care|household|cleaning|laundry|detergent/.test(c)) return "home";
+  if (/grocery|staple|spice|food|snack|oil|dairy|beverage|rice|atta/.test(c)) return "food";
+  return null;
+}
+
+function domainOfWords(wordSet: Set<string>): Domain | null {
+  for (const word of wordSet) if (HOME_TYPES.has(word)) return "home";
+  for (const word of wordSet) if (PERSONAL_TYPES.has(word)) return "personal";
+  for (const word of wordSet) if (TYPE_WORDS.has(word)) return "food";
+  return null;
+}
+
 function words(value: string): string[] {
-  return value
+  const tokens = value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .split(" ")
+    .flatMap((word) => (GLUED[word] ?? word).split(" "))
     .filter((word) => word.length > 2 && !/^\d+$/.test(word) && !MATCH_STOP_WORDS.has(word))
     .map((word) => SYNONYMS[word] ?? word);
+  const implied = tokens.flatMap((word) => (BRAND_IMPLIES[word] ? [BRAND_IMPLIES[word]] : []));
+  return [...tokens, ...implied];
 }
 
 function formOf(wordSet: Set<string>): string | null {
@@ -330,17 +444,20 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
 
   const shared = [...phraseWords].filter((word) => itemWords.has(word));
   if (shared.length === 0) return 0;
+  // Shared brand only, nothing about the product itself.
+  if (shared.every((word) => BRAND_WORDS.has(word))) return 0;
 
   // The bill line states a product type the catalog item never mentions:
   // brand overlap only, so treat it as very weak evidence.
   const typeless = itemTypes.length > 0 && phraseTypes.length === 0;
 
 
-  const strong = shared.filter((word) => !TYPE_WORDS.has(word)).length;
-  const weak = shared.length - strong;
+  const strong = shared.filter((word) => !TYPE_WORDS.has(word) && !BRAND_WORDS.has(word)).length;
+  const brand = shared.filter((word) => BRAND_WORDS.has(word)).length;
+  const weak = shared.length - strong - brand;
   const coverage = shared.length / Math.min(itemWords.size, phraseWords.size);
 
-  let score = strong * 1 + weak * 0.4 + coverage * 0.5;
+  let score = strong * 1 + brand * 0.7 + weak * 0.4 + coverage * 0.5;
 
   // Penalise catalog-only speciality qualifiers the bill line never mentions.
   for (const word of phraseWords) {
@@ -372,6 +489,12 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     const phrases = [...p.keywords, p.name];
     // A detergent bar must map to a bar, not to the powder or the liquid.
     const productWords = new Set(words(phrases.join(" ")));
+    // A personal-care bill line never pairs with a food SKU, and vice versa.
+    const itemDomain = domainOfWords(new Set(words(item.name))) ?? domainOfCategory(item.category);
+    const productDomain = domainOfWords(productWords);
+    if (itemDomain && productDomain && itemDomain !== productDomain) continue;
+    // A soap or cleaning line must land on a product that says what it is.
+    if (itemDomain && itemDomain !== "food" && !productDomain) continue;
     const productForm = formOf(productWords);
     if (itemForm && productForm && itemForm !== productForm) continue;
     const base = Math.max(
@@ -387,6 +510,11 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     // A packed bill line belongs with the packed SKU, not the loose variant.
     const productText = phrases.join(" ").toLowerCase();
     if (productText.includes("loose") && !item.name.toLowerCase().includes("loose")) score -= 0.8;
+
+    // The catalog keyword names the exact national brand on the bill
+    // (Lux -> Rose Glow Beauty Soap): the strongest signal we have.
+    const itemBrands = [...new Set(words(item.name))].filter((w) => BRAND_WORDS.has(w));
+    if (itemBrands.some((b) => productWords.has(b))) score += 0.6;
 
     // Bill says "paste"/"bar"/"spray" but the catalog item states no form:
     // weaker evidence than a catalog item stating the same form.
