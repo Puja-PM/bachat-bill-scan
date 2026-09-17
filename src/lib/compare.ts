@@ -170,7 +170,14 @@ const SYNONYMS: Record<string, string> = {
   saffolla: "saffola",
   papadam: "papad",
   papd: "papad",
+  gingr: "ginger",
+  gngr: "ginger",
+  adrak: "ginger",
+  nuts: "nut",
+  mixed: "mix",
+  mothers: "mother",
 };
+
 
 // Bills glue words together ("WADAKOLAM"); split them before matching.
 const GLUED: Record<string, string> = {
@@ -395,6 +402,12 @@ function domainOfWords(wordSet: Set<string>): Domain | null {
   return null;
 }
 
+// Short brand shorthands on bills that name a product type implicitly.
+const PHRASE_IMPLIES: Array<[RegExp, string]> = [
+  [/godrej\s*(no\.?\s*)?n?\s*1\b/i, "soap"],
+  [/\bmother'?s?\b[^a-z]*(recipe)?[^a-z]*(gingr|ginger|ging)\b/i, "garlic paste"],
+];
+
 function words(value: string): string[] {
   const tokens = value
     .toLowerCase()
@@ -404,8 +417,12 @@ function words(value: string): string[] {
     .filter((word) => word.length > 2 && !/^\d+$/.test(word) && !MATCH_STOP_WORDS.has(word))
     .map((word) => SYNONYMS[word] ?? word);
   const implied = tokens.flatMap((word) => (BRAND_IMPLIES[word] ? [BRAND_IMPLIES[word]] : []));
-  return [...tokens, ...implied];
+  const phraseImplied = PHRASE_IMPLIES.filter(([re]) => re.test(value)).flatMap(([, add]) =>
+    add.split(" "),
+  );
+  return [...tokens, ...implied, ...phraseImplied];
 }
+
 
 function formOf(wordSet: Set<string>): string | null {
   for (const word of wordSet) {
@@ -472,12 +489,12 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
 
 // Liquid groceries are printed by volume on bills but packed by weight in the
 // Just catalog, so grams and millilitres are treated as comparable (1:1).
-function unitsComparable(a: Unit, b: Unit): boolean {
-  const fa = unitFamily(a);
-  const fb = unitFamily(b);
-  if (fa === fb) return true;
-  return fa !== "count" && fb !== "count";
+// Bill lines printed without a pack size (unit = "unit") must still compare:
+// we allow them against any pack and simply ignore pack-size closeness.
+function unitsComparable(_a: Unit, _b: Unit): boolean {
+  return true;
 }
+
 
 export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduct | null {
   const candidates: Array<{ product: JustProduct; score: number; sizeGap: number }> = [];
@@ -521,11 +538,14 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     if (itemForm && !productForm) score -= 0.6;
 
     if (score <= 0) continue;
+    // No printed pack size on the bill: ignore pack-size closeness entirely.
+    const sizeless = unitFamily(item.unit) === "count" || unitFamily(p.pack_unit) === "count";
     candidates.push({
       product: p,
       score,
-      sizeGap: Math.abs(p.pack_qty - totalQty),
+      sizeGap: sizeless ? 0 : Math.abs(p.pack_qty - totalQty),
     });
+
   }
   // Among equally good names, prefer the closest pack size. The final id
   // tie-break keeps the chosen match identical across repeat scans.
