@@ -646,8 +646,16 @@ export function rupees(n: number): string {
   return `₹${n.toFixed(2)}`;
 }
 
-export function compare(items: ScannedItem[], catalog: JustProduct[]): ComparisonSummary {
-  const rows: ComparisonRow[] = items.map((item) => {
+/**
+ * `resolved` is the AI judge's verdict per bill line: a product id, or null for
+ * "not available on Just". `undefined` falls back to the deterministic pick.
+ */
+export function compare(
+  items: ScannedItem[],
+  catalog: JustProduct[],
+  resolved?: Array<string | null | undefined>,
+): ComparisonSummary {
+  const rows: ComparisonRow[] = items.map((item, index) => {
     if (isOutOfScope(item.category, item.name)) {
       return {
         item,
@@ -659,7 +667,13 @@ export function compare(items: ScannedItem[], catalog: JustProduct[]): Compariso
       };
     }
 
-    const match = findMatch(item, catalog);
+    const verdict = resolved?.[index];
+    const match =
+      verdict === undefined
+        ? findMatch(item, catalog)
+        : verdict === null
+          ? null
+          : (catalog.find((p) => String(p.id) === String(verdict)) ?? findMatch(item, catalog));
     if (!match) {
       return {
         item,
