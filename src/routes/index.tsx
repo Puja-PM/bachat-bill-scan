@@ -10,8 +10,12 @@ import {
   RotateCcw,
   Settings,
   Sparkles,
+  MapPin,
+  ScanLine,
 } from "lucide-react";
 
+import scanAssistant from "@/assets/bill-scan-assistant.png";
+import { Button } from "@/components/ui/button";
 import { scanReceipt } from "@/lib/scan.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { compare, formatQty, rupees, shortlist } from "@/lib/compare";
@@ -144,25 +148,30 @@ function ScannerApp() {
 
   return (
     <div className="min-h-screen bg-background pb-16">
-      <header className="bg-primary px-4 py-5 text-primary-foreground shadow-[var(--shadow-pop)]">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
+      <header className="bg-[image:var(--header-gradient)] px-5 py-6 text-primary-foreground shadow-[var(--shadow-pop)] sm:py-7">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl font-extrabold leading-tight">
+            <h1 className="max-w-[17rem] font-display text-[1.7rem] font-extrabold leading-[1.08] sm:max-w-none sm:text-3xl">
               JUST ke saath Grocery main Bachat
             </h1>
-            <p className="text-xs opacity-85">Magarpatta &amp; Hadapsar · Swiggy Instamart</p>
+            <p className="mt-2 flex items-center gap-1.5 text-sm font-medium opacity-85">
+              <MapPin className="h-4 w-4" /> Magarpatta &amp; Hadapsar
+            </p>
           </div>
-          <Link
-            to="/catalog"
-            className="rounded-full border border-primary-foreground/30 p-2 transition-colors hover:bg-primary-foreground/10"
-            aria-label="Just catalog manage karein"
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="h-12 w-12 shrink-0 rounded-xl border border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground shadow-[var(--shadow-pop)] hover:bg-primary-foreground/20 hover:text-primary-foreground"
           >
-            <Settings className="h-4 w-4" />
-          </Link>
+            <Link to="/catalog" aria-label="Just catalog manage karein">
+              <Settings className="h-6 w-6" />
+            </Link>
+          </Button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-6">
+      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
         {error && (
           <div className="mb-4 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -216,31 +225,40 @@ function ScannerApp() {
 function CaptureScreen({ onCamera, onGallery }: { onCamera: () => void; onGallery: () => void }) {
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-card p-8 text-center">
-        <div className="mx-auto mb-4 flex h-24 w-16 items-end justify-center rounded-md border-2 border-border bg-muted">
-          <div className="mb-2 h-1.5 w-10 rounded bg-border" />
-        </div>
-        <h2 className="font-display text-xl font-bold">Customer ka bill scan karein</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <section className="overflow-hidden rounded-[2rem] border border-card bg-card px-5 pb-7 pt-2 text-center shadow-[var(--shadow-scan-panel)] sm:px-10 sm:pb-9">
+        <img
+          src={scanAssistant}
+          alt="Bill scan karne mein madad karti Just assistant"
+          width={1024}
+          height={768}
+          className="mx-auto h-auto w-full max-w-md object-contain"
+        />
+        <h2 className="font-display text-[1.65rem] font-extrabold leading-tight sm:text-3xl">
+          Customer ka bill scan karein
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-[0.98rem] leading-relaxed text-muted-foreground sm:text-lg">
           Poora bill frame mein rakhein. Lamba bill ho toh 2-3 overlapping photo ek saath bhejein.
         </p>
-      </div>
+      </section>
 
-      <button
+      <Button
+        type="button"
         onClick={onCamera}
-        className="flex w-full items-center justify-center gap-3 rounded-2xl bg-secondary px-6 py-5 font-display text-lg font-bold text-secondary-foreground shadow-[var(--shadow-pop)] transition-transform active:scale-[0.98]"
+        className="h-auto w-full rounded-[1.6rem] bg-secondary px-6 py-5 font-display text-xl font-extrabold text-secondary-foreground shadow-[var(--shadow-scan-action)] transition-transform hover:bg-secondary/90 active:scale-[0.98] sm:py-6 sm:text-2xl"
       >
-        <Camera className="h-6 w-6" /> D-Mart Bill Scan Karein
-      </button>
+        <ScanLine className="h-7 w-7" /> D-Mart Bill Scan Karein
+      </Button>
 
-      <button
+      <Button
+        type="button"
+        variant="outline"
         onClick={onGallery}
-        className="flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-primary bg-card px-6 py-4 font-display text-base font-bold text-primary transition-colors hover:bg-primary/5"
+        className="h-auto w-full rounded-[1.6rem] border-2 border-primary bg-card px-5 py-4 font-display text-lg font-extrabold text-primary shadow-none hover:bg-primary/5 hover:text-primary sm:py-5 sm:text-xl"
       >
         <Upload className="h-5 w-5" /> Gallery Se Bill Upload Karein
-      </button>
+      </Button>
 
-      <p className="text-center text-xs text-muted-foreground">
+      <p className="px-2 text-center text-sm leading-relaxed text-muted-foreground">
         PNG, JPG ya PDF — sab chalega. Star Bazaar aur Reliance Fresh bills bhi.
       </p>
     </div>
