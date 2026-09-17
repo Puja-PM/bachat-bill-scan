@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useRef, useMemo } from "react";
 import QRCode from "react-qr-code";
 import {
-  Camera,
   Upload,
   Loader2,
   AlertTriangle,
@@ -13,7 +12,6 @@ import {
   MapPin,
   ScanLine,
   Share2,
-  Trophy,
   Coins,
 } from "lucide-react";
 
@@ -24,7 +22,6 @@ import { scanReceipt } from "@/lib/scan.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { compare, formatQty, rupees, shortlist } from "@/lib/compare";
 import { resolveMatches } from "@/lib/match.functions";
-import { Tag } from "@/components/Tag";
 import type { JustProduct, ScannedItem } from "@/lib/types";
 
 export const Route = createFileRoute("/")({
