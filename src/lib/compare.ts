@@ -273,7 +273,7 @@ function words(value: string): string[] {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .split(" ")
-    .filter((word) => word.length > 2 && !MATCH_STOP_WORDS.has(word))
+    .filter((word) => word.length > 2 && !/^\d+$/.test(word) && !MATCH_STOP_WORDS.has(word))
     .map((word) => SYNONYMS[word] ?? word);
 }
 
