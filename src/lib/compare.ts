@@ -434,7 +434,15 @@ function formOf(wordSet: Set<string>): string | null {
   return null;
 }
 
-function matchScore(itemName: string, phrase: string, productWords?: Set<string>): number {
+// `relaxed` turns the hard rejects into penalties. Strict mode decides the
+// deterministic fallback match; relaxed mode only builds the shortlist that
+// the AI judge picks from, so recall matters more than precision there.
+function matchScore(
+  itemName: string,
+  phrase: string,
+  productWords?: Set<string>,
+  relaxed = false,
+): number {
   const itemWords = new Set(words(itemName));
   const phraseWords = new Set(words(phrase));
   if (itemWords.size === 0 || phraseWords.size === 0) return 0;
@@ -442,6 +450,8 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
   // Product types are read from the whole product (name + keywords), so a
   // brand-only keyword like "Lux radiant Glow" still counts as a soap.
   const typeSource = productWords ?? phraseWords;
+
+  let penalty = 0;
 
   // Different product types entirely (cooking oil vs handwash): never a match.
   const itemTypes = [...itemWords].filter((w) => TYPE_WORDS.has(w));
@@ -451,18 +461,23 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
     phraseTypes.length > 0 &&
     !itemTypes.some((w) => phraseTypes.includes(w))
   ) {
-    return 0;
+    if (!relaxed) return 0;
+    penalty += 1.2;
   }
 
   // Same product, different pack form (detergent bar vs detergent powder).
   const itemForm = formOf(itemWords);
   const phraseForm = formOf(phraseWords);
-  if (itemForm && phraseForm && itemForm !== phraseForm) return 0;
+  if (itemForm && phraseForm && itemForm !== phraseForm) {
+    if (!relaxed) return 0;
+    penalty += 1;
+  }
 
   const shared = [...phraseWords].filter((word) => itemWords.has(word));
   if (shared.length === 0) return 0;
   // Shared brand only, nothing about the product itself.
-  if (shared.every((word) => BRAND_WORDS.has(word))) return 0;
+  const brandOnly = shared.every((word) => BRAND_WORDS.has(word));
+  if (brandOnly && !relaxed) return 0;
 
   // The bill line states a product type the catalog item never mentions:
   // brand overlap only, so treat it as very weak evidence.
@@ -478,12 +493,15 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
 
   // Penalise catalog-only speciality qualifiers the bill line never mentions.
   for (const word of phraseWords) {
-    if (SPECIALITY_WORDS.has(word) && !itemWords.has(word)) score -= 0.8;
+    if (SPECIALITY_WORDS.has(word) && !itemWords.has(word)) score -= relaxed ? 0.4 : 0.8;
   }
 
-  if (typeless) score *= 0.3;
+  if (typeless) score *= relaxed ? 0.6 : 0.3;
+  if (brandOnly) score *= 0.4;
+  score -= penalty;
 
-  return score > 0.35 ? score : 0;
+  const floor = relaxed ? 0.05 : 0.35;
+  return score > floor ? score : 0;
 }
 
 
@@ -496,8 +514,14 @@ function unitsComparable(_a: Unit, _b: Unit): boolean {
 }
 
 
-export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduct | null {
-  const candidates: Array<{ product: JustProduct; score: number; sizeGap: number }> = [];
+export type Candidate = { product: JustProduct; score: number; sizeGap: number };
+
+function rankCandidates(
+  item: ScannedItem,
+  catalog: JustProduct[],
+  relaxed: boolean,
+): Candidate[] {
+  const candidates: Candidate[] = [];
   const totalQty = item.qty * (item.count || 1);
   const itemForm = formOf(new Set(words(item.name)));
   for (const p of catalog) {
@@ -509,24 +533,36 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     // A personal-care bill line never pairs with a food SKU, and vice versa.
     const itemDomain = domainOfWords(new Set(words(item.name))) ?? domainOfCategory(item.category);
     const productDomain = domainOfWords(productWords);
-    if (itemDomain && productDomain && itemDomain !== productDomain) continue;
+    let penalty = 0;
+    if (itemDomain && productDomain && itemDomain !== productDomain) {
+      if (!relaxed) continue;
+      penalty += 1.2;
+    }
     // A soap or cleaning line must land on a product that says what it is.
-    if (itemDomain && itemDomain !== "food" && !productDomain) continue;
+    if (itemDomain && itemDomain !== "food" && !productDomain) {
+      if (!relaxed) continue;
+      penalty += 0.8;
+    }
     const productForm = formOf(productWords);
-    if (itemForm && productForm && itemForm !== productForm) continue;
+    if (itemForm && productForm && itemForm !== productForm) {
+      if (!relaxed) continue;
+      penalty += 1;
+    }
     const base = Math.max(
       0,
-      ...phrases.map((phrase) => matchScore(item.name, phrase, productWords)),
+      ...phrases.map((phrase) => matchScore(item.name, phrase, productWords, relaxed)),
     );
 
     if (base === 0) continue;
 
     const sameFamily = unitFamily(p.pack_unit) === unitFamily(item.unit);
-    let score = sameFamily ? base : base * 0.9;
+    let score = (sameFamily ? base : base * 0.9) - penalty;
 
     // A packed bill line belongs with the packed SKU, not the loose variant.
     const productText = phrases.join(" ").toLowerCase();
-    if (productText.includes("loose") && !item.name.toLowerCase().includes("loose")) score -= 0.8;
+    if (productText.includes("loose") && !item.name.toLowerCase().includes("loose")) {
+      score -= relaxed ? 0.3 : 0.8;
+    }
 
     // The catalog keyword names the exact national brand on the bill
     // (Lux -> Rose Glow Beauty Soap): the strongest signal we have.
@@ -535,7 +571,7 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
 
     // Bill says "paste"/"bar"/"spray" but the catalog item states no form:
     // weaker evidence than a catalog item stating the same form.
-    if (itemForm && !productForm) score -= 0.6;
+    if (itemForm && !productForm) score -= relaxed ? 0.2 : 0.6;
 
     if (score <= 0) continue;
     // No printed pack size on the bill: ignore pack-size closeness entirely.
@@ -555,6 +591,31 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
       a.sizeGap / (totalQty || 1) - b.sizeGap / (totalQty || 1) ||
       String(a.product.id).localeCompare(String(b.product.id)),
   );
+  return candidates;
+}
+
+/**
+ * Recall stage: the best few products worth considering for a bill line.
+ * Deliberately generous — the AI judge makes the final call.
+ */
+export function shortlist(item: ScannedItem, catalog: JustProduct[], limit = 12): JustProduct[] {
+  if (isOutOfScope(item.category, item.name)) return [];
+  const seen = new Set<string>();
+  const out: JustProduct[] = [];
+  const push = (c: Candidate) => {
+    if (seen.has(String(c.product.id)) || out.length >= limit) return;
+    seen.add(String(c.product.id));
+    out.push(c.product);
+  };
+  // The strict winner always leads the shortlist, then the relaxed ranking.
+  const strict = rankCandidates(item, catalog, false);
+  const best = pickBest(strict, item);
+  if (best) push({ product: best, score: 0, sizeGap: 0 });
+  for (const c of rankCandidates(item, catalog, true)) push(c);
+  return out;
+}
+
+function pickBest(candidates: Candidate[], item: ScannedItem): JustProduct | null {
   const best = candidates[0];
   if (!best) return null;
   // Re-rank the near-best names by pack-size closeness so 5 kg atta maps to the
@@ -566,7 +627,12 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
       b.score - a.score ||
       String(a.product.id).localeCompare(String(b.product.id)),
   );
+  void item;
   return close[0]?.product ?? best.product;
+}
+
+export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduct | null {
+  return pickBest(rankCandidates(item, catalog, false), item);
 }
 
 export function formatQty(qty: number, unit: Unit): string {
@@ -580,8 +646,16 @@ export function rupees(n: number): string {
   return `₹${n.toFixed(2)}`;
 }
 
-export function compare(items: ScannedItem[], catalog: JustProduct[]): ComparisonSummary {
-  const rows: ComparisonRow[] = items.map((item) => {
+/**
+ * `resolved` is the AI judge's verdict per bill line: a product id, or null for
+ * "not available on Just". `undefined` falls back to the deterministic pick.
+ */
+export function compare(
+  items: ScannedItem[],
+  catalog: JustProduct[],
+  resolved?: Array<string | null | undefined>,
+): ComparisonSummary {
+  const rows: ComparisonRow[] = items.map((item, index) => {
     if (isOutOfScope(item.category, item.name)) {
       return {
         item,
@@ -593,7 +667,13 @@ export function compare(items: ScannedItem[], catalog: JustProduct[]): Compariso
       };
     }
 
-    const match = findMatch(item, catalog);
+    const verdict = resolved?.[index];
+    const match =
+      verdict === undefined
+        ? findMatch(item, catalog)
+        : verdict === null
+          ? null
+          : (catalog.find((p) => String(p.id) === String(verdict)) ?? findMatch(item, catalog));
     if (!match) {
       return {
         item,
