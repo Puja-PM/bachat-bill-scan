@@ -350,21 +350,18 @@ function PitchScreen({
         </div>
       )}
 
-      {(moreCatalogItems > 0 || hiddenSavingCount > 0) && (
+      {otherProducts.length > 0 && (
         <section className="rounded-2xl border border-secondary/30 bg-success-soft p-5 text-success">
           <p className="font-display text-2xl font-extrabold leading-tight">
             {moreCatalogItems}+ aur grocery items JUST par available hain
           </p>
-          <p className="mt-2 text-sm font-semibold">
-            {hiddenSavingCount > 0
-              ? `Is bill mein ${hiddenSavingCount} aur cheaper JUST match mile.`
-              : "Atta, rice, oil, masale, soaps, detergent aur daily essentials par bhi bachat dekhein."}
-          </p>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold sm:grid-cols-4">
-            <span className="rounded-full bg-card px-3 py-2 text-center">Atta &amp; Rice</span>
-            <span className="rounded-full bg-card px-3 py-2 text-center">Oil &amp; Masale</span>
-            <span className="rounded-full bg-card px-3 py-2 text-center">Soaps</span>
-            <span className="rounded-full bg-card px-3 py-2 text-center">Cleaning</span>
+          <p className="mt-2 text-sm font-semibold">Jaise ki:</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+            {otherProducts.map((name) => (
+              <span key={name} className="rounded-full bg-card px-3 py-2">
+                {name}
+              </span>
+            ))}
           </div>
         </section>
       )}
