@@ -51,7 +51,7 @@ export const scanReceipt = createServerFn({ method: "POST" })
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) throw new Error("AI service is not configured.");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -59,38 +59,35 @@ export const scanReceipt = createServerFn({ method: "POST" })
         "X-Lovable-AIG-SDK": "fetch",
       },
       body: JSON.stringify({
-        model: "google/gemini-3.8-flash",
-        // Deterministic reading: the same bill must produce the same lines
-        // (names, sizes, prices) on every scan.
-        temperature: 0,
-        top_p: 1,
-        seed: 7,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+        model: "openai/gpt-6-astra",
+        stream: true,
+        reasoning: { effort: "low" },
+        input: [
+          { role: "system", content: [{ type: "input_text", text: SYSTEM_PROMPT }] },
           {
             role: "user",
             content: [
               {
-                type: "text",
+                type: "input_text",
                 text: "Extract all items from this receipt (multiple photos may be parts of one long bill).",
               },
               ...data.images.map((url, index) =>
                 url.startsWith("data:application/pdf")
                   ? {
-                      type: "file" as const,
-                      file: { filename: `receipt-${index + 1}.pdf`, file_data: url },
+                      type: "input_file" as const,
+                      filename: `receipt-${index + 1}.pdf`,
+                      file_data: url,
                     }
                   : {
-                      type: "image_url" as const,
-                      image_url: { url },
+                      type: "input_image" as const,
+                      image_url: url,
                     },
               ),
             ],
           },
         ],
-        response_format: {
-          type: "json_schema",
-          json_schema: { name: "receipt", strict: true, schema },
+        text: {
+          format: { type: "json_schema", name: "receipt", strict: true, schema },
         },
       }),
     });
@@ -103,14 +100,44 @@ export const scanReceipt = createServerFn({ method: "POST" })
       throw new Error(`Bill scan fail hua (${res.status}): ${body.slice(0, 200)}`);
     }
 
-    const json = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const content = json.choices?.[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(content) as {
+    // Reasoning models must stream; accumulate the output text deltas.
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("Bill scan fail hua: empty response.");
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let content = "";
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        try {
+          const evt = JSON.parse(payload) as {
+            type?: string;
+            delta?: string;
+            response?: { output_text?: string };
+          };
+          if (evt.type === "response.output_text.delta" && typeof evt.delta === "string") {
+            content += evt.delta;
+          } else if (evt.type === "response.completed" && evt.response?.output_text && !content) {
+            content = evt.response.output_text;
+          }
+        } catch {
+          // ignore keep-alive / non-JSON frames
+        }
+      }
+    }
+
+    const parsed = JSON.parse(content || "{}") as {
       store?: string;
       items?: Array<Record<string, unknown>>;
     };
+
 
     return {
       store: parsed.store || "Hypermarket Bill",
