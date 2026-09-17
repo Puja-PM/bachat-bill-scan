@@ -89,7 +89,16 @@ const MATCH_STOP_WORDS = new Set([
   "extra",
   "gold",
   "regular",
+  "food",
+  "grade",
+  "active",
+  "advanced",
+  "natural",
+  "pure",
+  "original",
+  "gentle",
 ]);
+
 
 // Hindi / English names for the same product, plus common bill spellings.
 const SYNONYMS: Record<string, string> = {
