@@ -207,6 +207,13 @@ const TYPE_WORDS = new Set([
   "jam",
   "pickle",
   "masala",
+  "bread",
+  "bun",
+  "rusk",
+  "biscuits",
+  "atta",
+  "rice",
+  "paste",
 ]);
 
 // Pack form: a detergent bar is not a detergent powder, even though both are
@@ -246,6 +253,16 @@ const SPECIALITY_WORDS = new Set([
   "incense",
   // Packed bill lines should map to the packed JUST SKU, not the loose variant.
   "loose",
+  // Oil varieties: a bill line that never says "mustard" should not land on
+  // mustard oil; a generic oil maps to the blended oil instead.
+  "mustard",
+  "coconut",
+  "olive",
+  "groundnut",
+  "soyabean",
+  "sesame",
+  "sunflower",
+  "bran",
 ]);
 
 function words(value: string): string[] {
