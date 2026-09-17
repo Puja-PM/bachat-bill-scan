@@ -24,10 +24,38 @@ export const EXCLUDED_CATEGORIES = [
   "furniture",
 ];
 
-export function isOutOfScope(category: string): boolean {
+// Non-grocery hardware the bill's own category often mislabels (e.g. a
+// storage container printed as "kitchen"). Blocked by name too.
+const OUT_OF_SCOPE_WORDS = [
+  "container",
+  "lunch box",
+  "tiffin",
+  "casserole",
+  "bowl set",
+  "bucket",
+  "mug",
+  "plate",
+  "hanger",
+  "broom",
+  "mop stick",
+  "storage box",
+  "jar set",
+  "flask",
+  "cooker",
+  "kadai",
+  "tawa",
+];
+
+export function isOutOfScope(category: string, name = ""): boolean {
   const c = (category || "").toLowerCase();
-  return EXCLUDED_CATEGORIES.some((x) => c.includes(x));
+  const n = (name || "").toLowerCase();
+  // Dry fruits / nuts are packaged grocery, not fresh produce.
+  if (/\bdry\b|\bnut/.test(c)) return OUT_OF_SCOPE_WORDS.some((x) => n.includes(x));
+  if (EXCLUDED_CATEGORIES.some((x) => c.includes(x))) return true;
+  return OUT_OF_SCOPE_WORDS.some((x) => n.includes(x));
 }
+
+
 
 function unitFamily(u: Unit): "weight" | "volume" | "count" {
   if (u === "g") return "weight";
@@ -64,7 +92,16 @@ const MATCH_STOP_WORDS = new Set([
   "extra",
   "gold",
   "regular",
+  "food",
+  "grade",
+  "active",
+  "advanced",
+  "natural",
+  "pure",
+  "original",
+  "gentle",
 ]);
+
 
 // Hindi / English names for the same product, plus common bill spellings.
 const SYNONYMS: Record<string, string> = {
@@ -151,7 +188,37 @@ const TYPE_WORDS = new Set([
   "butter",
   "spray",
   "gel",
+  "handwash",
+  "sanitizer",
+  "toothpaste",
+  "brush",
+  "foil",
+  "tissue",
+  "napkin",
+  "freshener",
+  "conditioner",
+  "deodorant",
+  "honey",
+  "jam",
+  "pickle",
+  "masala",
 ]);
+
+// Pack form: a detergent bar is not a detergent powder, even though both are
+// detergent. When both sides state a form and the forms differ, it is a miss.
+const FORM_WORDS = new Set([
+  "bar",
+  "cake",
+  "powder",
+  "liquid",
+  "gel",
+  "spray",
+  "paste",
+  "cream",
+  "wipes",
+  "granules",
+]);
+
 
 // Specialised qualifiers: if the catalog item has them and the bill line does
 // not, it is almost certainly a different product (e.g. pooja oil vs cooking oil).
@@ -183,10 +250,36 @@ function words(value: string): string[] {
     .map((word) => SYNONYMS[word] ?? word);
 }
 
+function formOf(wordSet: Set<string>): string | null {
+  for (const word of wordSet) {
+    if (!FORM_WORDS.has(word)) continue;
+    if (word === "cake") return "bar";
+    if (word === "granules") return "powder";
+    return word;
+  }
+  return null;
+}
+
 function matchScore(itemName: string, phrase: string): number {
   const itemWords = new Set(words(itemName));
   const phraseWords = new Set(words(phrase));
   if (itemWords.size === 0 || phraseWords.size === 0) return 0;
+
+  // Different product types entirely (cooking oil vs handwash): never a match.
+  const itemTypes = [...itemWords].filter((w) => TYPE_WORDS.has(w));
+  const phraseTypes = [...phraseWords].filter((w) => TYPE_WORDS.has(w));
+  if (
+    itemTypes.length > 0 &&
+    phraseTypes.length > 0 &&
+    !itemTypes.some((w) => phraseTypes.includes(w))
+  ) {
+    return 0;
+  }
+
+  // Same product, different pack form (detergent bar vs detergent powder).
+  const itemForm = formOf(itemWords);
+  const phraseForm = formOf(phraseWords);
+  if (itemForm && phraseForm && itemForm !== phraseForm) return 0;
 
   const shared = [...phraseWords].filter((word) => itemWords.has(word));
   if (shared.length === 0) return 0;
@@ -205,6 +298,7 @@ function matchScore(itemName: string, phrase: string): number {
   return score > 0.35 ? score : 0;
 }
 
+
 // Liquid groceries are printed by volume on bills but packed by weight in the
 // Just catalog, so grams and millilitres are treated as comparable (1:1).
 function unitsComparable(a: Unit, b: Unit): boolean {
@@ -217,12 +311,17 @@ function unitsComparable(a: Unit, b: Unit): boolean {
 export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduct | null {
   const candidates: Array<{ product: JustProduct; score: number; sizeGap: number }> = [];
   const totalQty = item.qty * (item.count || 1);
+  const itemForm = formOf(new Set(words(item.name)));
   for (const p of catalog) {
     if (!p.active) continue;
     if (!unitsComparable(p.pack_unit, item.unit)) continue;
     const phrases = [...p.keywords, p.name];
+    // A detergent bar must map to a bar, not to the powder or the liquid.
+    const productForm = formOf(new Set(words(phrases.join(" "))));
+    if (itemForm && productForm && itemForm !== productForm) continue;
     const base = Math.max(0, ...phrases.map((phrase) => matchScore(item.name, phrase)));
     if (base === 0) continue;
+
     const sameFamily = unitFamily(p.pack_unit) === unitFamily(item.unit);
     candidates.push({
       product: p,
@@ -256,7 +355,7 @@ export function rupees(n: number): string {
 
 export function compare(items: ScannedItem[], catalog: JustProduct[]): ComparisonSummary {
   const rows: ComparisonRow[] = items.map((item) => {
-    if (isOutOfScope(item.category)) {
+    if (isOutOfScope(item.category, item.name)) {
       return {
         item,
         match: null,
