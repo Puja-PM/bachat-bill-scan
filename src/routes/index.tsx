@@ -233,7 +233,10 @@ function PitchScreen({
 }) {
   const [showQr, setShowQr] = useState(false);
   const positive = summary.savings >= 0;
-  const availableRows = summary.rows.filter((row) => row.justPrice !== null);
+  const availableRows = summary.rows
+    .filter((row) => row.justPrice !== null)
+    // Biggest JUST savings first, then the lines where the mart wins.
+    .sort((a, b) => b.diff - a.diff);
   const unavailableRows = summary.rows.filter((row) => row.justPrice === null);
 
   return (
