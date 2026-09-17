@@ -19,6 +19,12 @@ const MatchInput = z.object({
 });
 
 export type MatchVerdict = { productId: string | null; confidence: number; reason: string };
+export type JudgeLine = {
+  line: string;
+  size: string;
+  category: string;
+  candidates: Array<{ id: string; label: string }>;
+};
 
 const SYSTEM_PROMPT = `You match a line from an Indian hypermarket bill to the single best like-for-like product from Swiggy Instamart's private label "Just" catalog.
 
