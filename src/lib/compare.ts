@@ -44,6 +44,12 @@ const OUT_OF_SCOPE_WORDS = [
   "cooker",
   "kadai",
   "tawa",
+  // Block air-freshener blocks/bricks: the JUST equivalent is a spray, so the
+  // comparison is not like-for-like.
+  "odonil",
+  "air freshener",
+  "room freshener",
+  "air fresh",
 ];
 
 export function isOutOfScope(category: string, name = ""): boolean {
@@ -81,7 +87,6 @@ const MATCH_STOP_WORDS = new Set([
   "fresh",
   "premium",
   "combo",
-  "loose",
   "classic",
   "special",
   "quality",
@@ -92,6 +97,7 @@ const MATCH_STOP_WORDS = new Set([
   "extra",
   "gold",
   "regular",
+  "whole",
   "food",
   "grade",
   "active",
@@ -126,7 +132,6 @@ const SYNONYMS: Record<string, string> = {
   maida: "flour",
   aata: "atta",
   gehu: "atta",
-  wheat: "atta",
   besan: "gramflour",
   kaju: "cashew",
   badam: "almond",
@@ -159,7 +164,6 @@ const TYPE_WORDS = new Set([
   "bar",
   "liquid",
   "detergent",
-  "atta",
   "flour",
   "seed",
   "mix",
@@ -177,7 +181,6 @@ const TYPE_WORDS = new Set([
   "dal",
   "rice",
   "sponge",
-  "whole",
   "cream",
   "lotion",
   "shampoo",
@@ -202,6 +205,11 @@ const TYPE_WORDS = new Set([
   "jam",
   "pickle",
   "masala",
+  "bread",
+  "pasta",
+  "bun",
+  "rusk",
+  "biscuits",
 ]);
 
 // Pack form: a detergent bar is not a detergent powder, even though both are
@@ -239,6 +247,25 @@ const SPECIALITY_WORDS = new Set([
   "bleaching",
   "agarbatti",
   "incense",
+  // Packed bill lines should map to the packed JUST SKU, not the loose variant.
+  "loose",
+  // Oil varieties: a bill line that never says "mustard" should not land on
+  // mustard oil; a generic oil maps to the blended oil instead.
+  "mustard",
+  "coconut",
+  "olive",
+  "groundnut",
+  "soyabean",
+  "sesame",
+  "sunflower",
+  "bran",
+  // Flour varieties: plain atta means chakki atta, not multigrain or nachni.
+  "multigrain",
+  "nachni",
+  "sharbati",
+  "ragi",
+  "jowar",
+  "bajra",
 ]);
 
 function words(value: string): string[] {
@@ -246,7 +273,7 @@ function words(value: string): string[] {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .split(" ")
-    .filter((word) => word.length > 2 && !MATCH_STOP_WORDS.has(word))
+    .filter((word) => word.length > 2 && !/^\d+$/.test(word) && !MATCH_STOP_WORDS.has(word))
     .map((word) => SYNONYMS[word] ?? word);
 }
 
@@ -323,22 +350,42 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     if (base === 0) continue;
 
     const sameFamily = unitFamily(p.pack_unit) === unitFamily(item.unit);
+    let score = sameFamily ? base : base * 0.9;
+
+    // A packed bill line belongs with the packed SKU, not the loose variant.
+    const productText = phrases.join(" ").toLowerCase();
+    if (productText.includes("loose") && !item.name.toLowerCase().includes("loose")) score -= 0.8;
+
+    // Bill says "paste"/"bar"/"spray" but the catalog item states no form:
+    // weaker evidence than a catalog item stating the same form.
+    if (itemForm && !productForm) score -= 0.6;
+
+    if (score <= 0) continue;
     candidates.push({
       product: p,
-      score: sameFamily ? base : base * 0.9,
+      score,
       sizeGap: Math.abs(p.pack_qty - totalQty),
     });
   }
-  // Among equally good names, prefer the closest pack size.
+  // Among equally good names, prefer the closest pack size. The final id
+  // tie-break keeps the chosen match identical across repeat scans.
   candidates.sort(
-    (a, b) => b.score - a.score || a.sizeGap / (totalQty || 1) - b.sizeGap / (totalQty || 1),
+    (a, b) =>
+      b.score - a.score ||
+      a.sizeGap / (totalQty || 1) - b.sizeGap / (totalQty || 1) ||
+      String(a.product.id).localeCompare(String(b.product.id)),
   );
   const best = candidates[0];
   if (!best) return null;
   // Re-rank the near-best names by pack-size closeness so 5 kg atta maps to the
   // 5 kg pack rather than a 1 kg one.
   const close = candidates.filter((c) => c.score >= best.score - 0.25);
-  close.sort((a, b) => a.sizeGap - b.sizeGap || b.score - a.score);
+  close.sort(
+    (a, b) =>
+      a.sizeGap - b.sizeGap ||
+      b.score - a.score ||
+      String(a.product.id).localeCompare(String(b.product.id)),
+  );
   return close[0]?.product ?? best.product;
 }
 
