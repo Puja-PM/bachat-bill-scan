@@ -225,7 +225,10 @@ export const resolveMatches = createServerFn({ method: "POST" })
       });
 
       if (db && rows.length > 0) {
-        await db.from("match_cache").upsert(rows, { onConflict: "cache_key" });
+        // Anonymous callers may insert but not update, so ignore existing keys.
+        await db
+          .from("match_cache")
+          .upsert(rows, { onConflict: "cache_key", ignoreDuplicates: true });
       }
     }
 
