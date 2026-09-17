@@ -78,15 +78,17 @@ async function prepareFile(file: File): Promise<string> {
 
 function ScannerApp() {
   const scan = useServerFn(scanReceipt);
+  const resolve = useServerFn(resolveMatches);
   const [step, setStep] = useState<Step>("capture");
   const [error, setError] = useState<string | null>(null);
   const [store, setStore] = useState("D-Mart");
   const [items, setItems] = useState<ScannedItem[]>([]);
   const [catalog, setCatalog] = useState<JustProduct[]>([]);
+  const [resolved, setResolved] = useState<Array<string | null | undefined>>([]);
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
-  const summary = useMemo(() => compare(items, catalog), [items, catalog]);
+  const summary = useMemo(() => compare(items, catalog, resolved), [items, catalog, resolved]);
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
@@ -100,9 +102,28 @@ function ScannerApp() {
         supabase.from("just_products").select("*").eq("active", true),
       ]);
       if (catalogRes.error) throw new Error(catalogRes.error.message);
-      setCatalog((catalogRes.data ?? []) as unknown as JustProduct[]);
+      const products = (catalogRes.data ?? []) as unknown as JustProduct[];
+      setCatalog(products);
       setStore(result.store);
       setItems(result.items);
+
+      // Rules build a shortlist, a small model picks the like-for-like winner.
+      // Any failure there just leaves the deterministic pick in place.
+      try {
+        const lines = result.items.map((item) => ({
+          line: item.name,
+          size: formatQty(item.qty * (item.count || 1), item.unit),
+          category: item.category ?? "",
+          candidates: shortlist(item, products).map((p) => ({
+            id: String(p.id),
+            label: `${p.name} — ${formatQty(Number(p.pack_qty), p.pack_unit)} @ ${rupees(Number(p.price))}`,
+          })),
+        }));
+        const verdicts = await resolve({ data: { lines } });
+        setResolved(verdicts.map((v) => (v ? v.productId : undefined)));
+      } catch {
+        setResolved([]);
+      }
       setStep("pitch");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kuch galat ho gaya");
@@ -111,11 +132,6 @@ function ScannerApp() {
   }
 
 
-  function reset() {
-    setItems([]);
-    setStep("capture");
-    setError(null);
-  }
 
   return (
     <div className="min-h-screen bg-background pb-16">
