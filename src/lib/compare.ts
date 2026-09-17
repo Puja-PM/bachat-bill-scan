@@ -44,6 +44,12 @@ const OUT_OF_SCOPE_WORDS = [
   "cooker",
   "kadai",
   "tawa",
+  // Block air-freshener blocks/bricks: the JUST equivalent is a spray, so the
+  // comparison is not like-for-like.
+  "odonil",
+  "air freshener",
+  "room freshener",
+  "air fresh",
 ];
 
 export function isOutOfScope(category: string, name = ""): boolean {
@@ -81,7 +87,6 @@ const MATCH_STOP_WORDS = new Set([
   "fresh",
   "premium",
   "combo",
-  "loose",
   "classic",
   "special",
   "quality",
