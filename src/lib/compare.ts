@@ -302,14 +302,18 @@ function formOf(wordSet: Set<string>): string | null {
   return null;
 }
 
-function matchScore(itemName: string, phrase: string): number {
+function matchScore(itemName: string, phrase: string, productWords?: Set<string>): number {
   const itemWords = new Set(words(itemName));
   const phraseWords = new Set(words(phrase));
   if (itemWords.size === 0 || phraseWords.size === 0) return 0;
 
+  // Product types are read from the whole product (name + keywords), so a
+  // brand-only keyword like "Lux radiant Glow" still counts as a soap.
+  const typeSource = productWords ?? phraseWords;
+
   // Different product types entirely (cooking oil vs handwash): never a match.
   const itemTypes = [...itemWords].filter((w) => TYPE_WORDS.has(w));
-  const phraseTypes = [...phraseWords].filter((w) => TYPE_WORDS.has(w));
+  const phraseTypes = [...typeSource].filter((w) => TYPE_WORDS.has(w));
   if (
     itemTypes.length > 0 &&
     phraseTypes.length > 0 &&
@@ -326,9 +330,10 @@ function matchScore(itemName: string, phrase: string): number {
   const shared = [...phraseWords].filter((word) => itemWords.has(word));
   if (shared.length === 0) return 0;
 
-  // The bill line states a product type the catalog phrase never mentions
-  // (e.g. "Godrej No.1 soap" vs "Godrej Green Peas"): brand overlap only.
+  // The bill line states a product type the catalog item never mentions:
+  // brand overlap only, so treat it as very weak evidence.
   const typeless = itemTypes.length > 0 && phraseTypes.length === 0;
+
 
   const strong = shared.filter((word) => !TYPE_WORDS.has(word)).length;
   const weak = shared.length - strong;
