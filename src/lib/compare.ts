@@ -434,7 +434,15 @@ function formOf(wordSet: Set<string>): string | null {
   return null;
 }
 
-function matchScore(itemName: string, phrase: string, productWords?: Set<string>): number {
+// `relaxed` turns the hard rejects into penalties. Strict mode decides the
+// deterministic fallback match; relaxed mode only builds the shortlist that
+// the AI judge picks from, so recall matters more than precision there.
+function matchScore(
+  itemName: string,
+  phrase: string,
+  productWords?: Set<string>,
+  relaxed = false,
+): number {
   const itemWords = new Set(words(itemName));
   const phraseWords = new Set(words(phrase));
   if (itemWords.size === 0 || phraseWords.size === 0) return 0;
@@ -442,6 +450,8 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
   // Product types are read from the whole product (name + keywords), so a
   // brand-only keyword like "Lux radiant Glow" still counts as a soap.
   const typeSource = productWords ?? phraseWords;
+
+  let penalty = 0;
 
   // Different product types entirely (cooking oil vs handwash): never a match.
   const itemTypes = [...itemWords].filter((w) => TYPE_WORDS.has(w));
@@ -451,18 +461,23 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
     phraseTypes.length > 0 &&
     !itemTypes.some((w) => phraseTypes.includes(w))
   ) {
-    return 0;
+    if (!relaxed) return 0;
+    penalty += 1.2;
   }
 
   // Same product, different pack form (detergent bar vs detergent powder).
   const itemForm = formOf(itemWords);
   const phraseForm = formOf(phraseWords);
-  if (itemForm && phraseForm && itemForm !== phraseForm) return 0;
+  if (itemForm && phraseForm && itemForm !== phraseForm) {
+    if (!relaxed) return 0;
+    penalty += 1;
+  }
 
   const shared = [...phraseWords].filter((word) => itemWords.has(word));
   if (shared.length === 0) return 0;
   // Shared brand only, nothing about the product itself.
-  if (shared.every((word) => BRAND_WORDS.has(word))) return 0;
+  const brandOnly = shared.every((word) => BRAND_WORDS.has(word));
+  if (brandOnly && !relaxed) return 0;
 
   // The bill line states a product type the catalog item never mentions:
   // brand overlap only, so treat it as very weak evidence.
@@ -478,12 +493,15 @@ function matchScore(itemName: string, phrase: string, productWords?: Set<string>
 
   // Penalise catalog-only speciality qualifiers the bill line never mentions.
   for (const word of phraseWords) {
-    if (SPECIALITY_WORDS.has(word) && !itemWords.has(word)) score -= 0.8;
+    if (SPECIALITY_WORDS.has(word) && !itemWords.has(word)) score -= relaxed ? 0.4 : 0.8;
   }
 
-  if (typeless) score *= 0.3;
+  if (typeless) score *= relaxed ? 0.6 : 0.3;
+  if (brandOnly) score *= 0.4;
+  score -= penalty;
 
-  return score > 0.35 ? score : 0;
+  const floor = relaxed ? 0.05 : 0.35;
+  return score > floor ? score : 0;
 }
 
 
