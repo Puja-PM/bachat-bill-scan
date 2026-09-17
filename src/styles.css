@@ -125,6 +125,45 @@
   --header-gradient: linear-gradient(110deg, oklch(0.4 0.17 22), oklch(0.56 0.2 36));
   --shadow-scan-panel: 0 18px 44px -28px oklch(0.25 0.03 230 / 0.32);
   --shadow-scan-action: 0 14px 30px -15px oklch(0.605 0.166 140 / 0.72);
+  --savings-gradient: linear-gradient(145deg, oklch(0.69 0.16 137), oklch(0.49 0.15 141));
+  --shadow-savings: 0 14px 34px -16px oklch(0.45 0.16 90 / 0.6);
+  --shadow-card-soft: 0 10px 24px -18px oklch(0.3 0.03 60 / 0.38);
+}
+
+@utility savings-stage {
+  &::before,
+  &::after {
+    position: absolute;
+    z-index: 0;
+    width: 0.7rem;
+    height: 1.1rem;
+    border-radius: 0.15rem;
+    background: var(--color-accent);
+    content: "";
+    transform: rotate(22deg);
+  }
+
+  &::before {
+    left: 8%;
+    top: 28%;
+    box-shadow: 3rem 7rem 0 var(--color-primary-foreground), 9rem -1rem 0 var(--color-accent), 16rem 8rem 0 var(--color-accent), 23rem 2rem 0 var(--color-primary-foreground);
+  }
+
+  &::after {
+    right: 7%;
+    top: 14%;
+    box-shadow: -4rem 9rem 0 var(--color-primary-foreground), -11rem 3rem 0 var(--color-accent), -19rem 10rem 0 var(--color-accent);
+  }
+}
+
+@utility savings-amount {
+  color: var(--color-accent);
+  text-shadow: 0 2px 0 oklch(0.67 0.15 75), 0 5px 14px oklch(0.25 0.05 70 / 0.35);
+}
+
+@utility savings-card-amount {
+  color: var(--color-accent);
+  text-shadow: 0 2px 0 oklch(0.72 0.13 72), 0 4px 9px oklch(0.45 0.08 70 / 0.22);
 }
 
 
@@ -178,7 +217,7 @@
   h2,
   h3 {
     font-family: var(--font-display);
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
   }
 }
 
