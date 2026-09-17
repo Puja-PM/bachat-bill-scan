@@ -521,11 +521,14 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     if (itemForm && !productForm) score -= 0.6;
 
     if (score <= 0) continue;
+    // No printed pack size on the bill: ignore pack-size closeness entirely.
+    const sizeless = unitFamily(item.unit) === "count" || unitFamily(p.pack_unit) === "count";
     candidates.push({
       product: p,
       score,
-      sizeGap: Math.abs(p.pack_qty - totalQty),
+      sizeGap: sizeless ? 0 : Math.abs(p.pack_qty - totalQty),
     });
+
   }
   // Among equally good names, prefer the closest pack size. The final id
   // tie-break keeps the chosen match identical across repeat scans.
