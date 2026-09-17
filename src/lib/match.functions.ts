@@ -15,7 +15,7 @@ const LineSchema = z.object({
 });
 
 const MatchInput = z.object({
-  lines: z.array(LineSchema).max(40),
+  lines: z.array(LineSchema).max(200),
 });
 
 export type MatchVerdict = { productId: string | null; confidence: number; reason: string };
@@ -195,10 +195,13 @@ export const resolveMatches = createServerFn({ method: "POST" })
       const key = process.env["LOVABLE_API_KEY"];
       if (!key) throw new Error("AI service is not configured.");
 
-      const judged = await judgeLines(
-        pending.map((x) => x.line),
-        key,
-      );
+      // The model handles ~40 lines reliably, so judge in batches.
+      const BATCH = 40;
+      const judged: Array<MatchVerdict | null> = [];
+      for (let i = 0; i < pending.length; i += BATCH) {
+        const chunk = pending.slice(i, i + BATCH).map((x) => x.line);
+        judged.push(...(await judgeLines(chunk, key)));
+      }
 
       const rows: Array<{
         cache_key: string;
