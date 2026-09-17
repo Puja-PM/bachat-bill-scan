@@ -39,6 +39,7 @@ const OUT_OF_SCOPE_WORDS = [
   "broom",
   "mop stick",
   "storage box",
+  "lock",
   "jar set",
   "flask",
   "cooker",
