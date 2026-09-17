@@ -656,6 +656,19 @@ export function compare(
   resolved?: Array<string | null | undefined>,
 ): ComparisonSummary {
   const rows: ComparisonRow[] = items.map((item, index) => {
+    // Lines printed without a weight/volume (plain "1 unit") cannot be
+    // compared like-for-like, so they never enter the comparison.
+    if (item.unit === "unit") {
+      return {
+        item,
+        match: null,
+        justPrice: null,
+        diff: 0,
+        status: "out_of_scope",
+        label: "Yeh Category Just Pe Available Nahi Hai",
+      };
+    }
+
     if (isOutOfScope(item.category, item.name)) {
       return {
         item,

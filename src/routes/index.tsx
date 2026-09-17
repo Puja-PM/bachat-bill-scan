@@ -188,7 +188,7 @@ function ScannerApp() {
         )}
 
         {step === "pitch" && (
-          <PitchScreen store={store} summary={summary} catalogCount={catalog.length} onReset={reset} />
+          <PitchScreen store={store} summary={summary} catalog={catalog} onReset={reset} />
         )}
       </main>
 
@@ -250,12 +250,12 @@ function CaptureScreen({ onCamera, onGallery }: { onCamera: () => void; onGaller
 function PitchScreen({
   store,
   summary,
-  catalogCount,
+  catalog,
   onReset,
 }: {
   store: string;
   summary: ReturnType<typeof compare>;
-  catalogCount: number;
+  catalog: JustProduct[];
   onReset: () => void;
 }) {
   const [showQr, setShowQr] = useState(false);
@@ -264,12 +264,24 @@ function PitchScreen({
     // Only the biggest JUST wins should be visible to the customer.
     .sort((a, b) => b.diff - a.diff);
   const visibleRows = topSavingRows.slice(0, 5);
-  const hiddenSavingCount = Math.max(0, topSavingRows.length - visibleRows.length);
+  
   const visibleSavings = visibleRows.reduce((total, row) => total + row.diff, 0);
   const visibleMartTotal = visibleRows.reduce((total, row) => total + row.item.price, 0);
   const visibleJustTotal = visibleRows.reduce((total, row) => total + (row.justPrice ?? 0), 0);
   const visibleSavingsPct = visibleMartTotal > 0 ? Math.round((visibleSavings / visibleMartTotal) * 100) : 0;
-  const moreCatalogItems = Math.max(0, catalogCount - visibleRows.length);
+  const moreCatalogItems = Math.max(0, catalog.length - visibleRows.length);
+  // Show real JUST product names from the price list instead of a vague count.
+  const shownIds = new Set(visibleRows.map((row) => String(row.match?.id ?? "")));
+  const otherProducts = Array.from(
+    new Map(
+      catalog
+        .filter((p) => !shownIds.has(String(p.id)))
+        .map((p) => {
+          const clean = p.name.replace(/^jus\+?\s*/i, "").trim();
+          return [clean.toLowerCase(), clean] as const;
+        }),
+    ).values(),
+  ).slice(0, 14);
 
   return (
     <div className="space-y-5">
@@ -338,21 +350,18 @@ function PitchScreen({
         </div>
       )}
 
-      {(moreCatalogItems > 0 || hiddenSavingCount > 0) && (
+      {otherProducts.length > 0 && (
         <section className="rounded-2xl border border-secondary/30 bg-success-soft p-5 text-success">
           <p className="font-display text-2xl font-extrabold leading-tight">
             {moreCatalogItems}+ aur grocery items JUST par available hain
           </p>
-          <p className="mt-2 text-sm font-semibold">
-            {hiddenSavingCount > 0
-              ? `Is bill mein ${hiddenSavingCount} aur cheaper JUST match mile.`
-              : "Atta, rice, oil, masale, soaps, detergent aur daily essentials par bhi bachat dekhein."}
-          </p>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold sm:grid-cols-4">
-            <span className="rounded-full bg-card px-3 py-2 text-center">Atta &amp; Rice</span>
-            <span className="rounded-full bg-card px-3 py-2 text-center">Oil &amp; Masale</span>
-            <span className="rounded-full bg-card px-3 py-2 text-center">Soaps</span>
-            <span className="rounded-full bg-card px-3 py-2 text-center">Cleaning</span>
+          <p className="mt-2 text-sm font-semibold">Jaise ki:</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+            {otherProducts.map((name) => (
+              <span key={name} className="rounded-full bg-card px-3 py-2">
+                {name}
+              </span>
+            ))}
           </div>
         </section>
       )}
