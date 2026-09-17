@@ -259,6 +259,13 @@ const SPECIALITY_WORDS = new Set([
   "sesame",
   "sunflower",
   "bran",
+  // Flour varieties: plain atta means chakki atta, not multigrain or nachni.
+  "multigrain",
+  "nachni",
+  "sharbati",
+  "ragi",
+  "jowar",
+  "bajra",
 ]);
 
 function words(value: string): string[] {
