@@ -42,11 +42,136 @@ const MATCH_STOP_WORDS = new Set([
   "for",
   "of",
   "plus",
+  "jus",
   "pack",
   "pouch",
+  "packet",
   "refill",
+  "bottle",
+  "box",
   "new",
   "fresh",
+  "premium",
+  "combo",
+  "loose",
+  "classic",
+  "special",
+  "quality",
+  "value",
+  "daily",
+  "select",
+  "super",
+  "extra",
+  "gold",
+  "regular",
+]);
+
+// Hindi / English names for the same product, plus common bill spellings.
+const SYNONYMS: Record<string, string> = {
+  dhania: "coriander",
+  dhaniya: "coriander",
+  jeera: "cumin",
+  zeera: "cumin",
+  haldi: "turmeric",
+  mirch: "chilli",
+  mirchi: "chilli",
+  chili: "chilli",
+  chilly: "chilli",
+  namak: "salt",
+  cheeni: "sugar",
+  chini: "sugar",
+  sarso: "mustard",
+  sarson: "mustard",
+  tel: "oil",
+  chana: "chickpea",
+  channa: "chickpea",
+  kabuli: "chickpea",
+  maida: "flour",
+  aata: "atta",
+  gehu: "atta",
+  wheat: "atta",
+  besan: "gramflour",
+  kaju: "cashew",
+  badam: "almond",
+  almonds: "almond",
+  cashews: "cashew",
+  kishmish: "raisin",
+  raisins: "raisin",
+  detergents: "detergent",
+  washing: "detergent",
+  dishwash: "dishwash",
+  dishwashing: "dishwash",
+  utensil: "dishwash",
+  scrubber: "sponge",
+  scrub: "sponge",
+  noodle: "noodles",
+  soaps: "soap",
+  bathing: "soap",
+  seeds: "seed",
+  powdered: "powder",
+  masoor: "lentil",
+  toor: "tur",
+  arhar: "tur",
+};
+
+// Generic product-type nouns: meaningful, but weak evidence on their own.
+const TYPE_WORDS = new Set([
+  "oil",
+  "powder",
+  "soap",
+  "bar",
+  "liquid",
+  "detergent",
+  "atta",
+  "flour",
+  "seed",
+  "mix",
+  "cleaner",
+  "wash",
+  "noodles",
+  "biscuit",
+  "cookies",
+  "tea",
+  "coffee",
+  "sugar",
+  "salt",
+  "water",
+  "juice",
+  "dal",
+  "rice",
+  "sponge",
+  "whole",
+  "cream",
+  "lotion",
+  "shampoo",
+  "paste",
+  "sauce",
+  "ghee",
+  "milk",
+  "butter",
+  "spray",
+  "gel",
+]);
+
+// Specialised qualifiers: if the catalog item has them and the bill line does
+// not, it is almost certainly a different product (e.g. pooja oil vs cooking oil).
+const SPECIALITY_WORDS = new Set([
+  "pooja",
+  "puja",
+  "camphor",
+  "hair",
+  "massage",
+  "baby",
+  "toilet",
+  "bathroom",
+  "floor",
+  "glass",
+  "car",
+  "pet",
+  "phenyl",
+  "bleaching",
+  "agarbatti",
+  "incense",
 ]);
 
 function words(value: string): string[] {
@@ -54,7 +179,8 @@ function words(value: string): string[] {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .split(" ")
-    .filter((word) => word.length > 2 && !MATCH_STOP_WORDS.has(word));
+    .filter((word) => word.length > 2 && !MATCH_STOP_WORDS.has(word))
+    .map((word) => SYNONYMS[word] ?? word);
 }
 
 function matchScore(itemName: string, phrase: string): number {
@@ -62,10 +188,21 @@ function matchScore(itemName: string, phrase: string): number {
   const phraseWords = new Set(words(phrase));
   if (itemWords.size === 0 || phraseWords.size === 0) return 0;
 
-  const overlap = [...phraseWords].filter((word) => itemWords.has(word)).length;
-  const coverage = overlap / Math.min(itemWords.size, phraseWords.size);
-  const enoughEvidence = overlap >= 2 || (overlap === 1 && phraseWords.size === 1);
-  return enoughEvidence && coverage >= 0.6 ? coverage + overlap * 0.05 : 0;
+  const shared = [...phraseWords].filter((word) => itemWords.has(word));
+  if (shared.length === 0) return 0;
+
+  const strong = shared.filter((word) => !TYPE_WORDS.has(word)).length;
+  const weak = shared.length - strong;
+  const coverage = shared.length / Math.min(itemWords.size, phraseWords.size);
+
+  let score = strong * 1 + weak * 0.4 + coverage * 0.5;
+
+  // Penalise catalog-only speciality qualifiers the bill line never mentions.
+  for (const word of phraseWords) {
+    if (SPECIALITY_WORDS.has(word) && !itemWords.has(word)) score -= 0.8;
+  }
+
+  return score > 0.35 ? score : 0;
 }
 
 // Liquid groceries are printed by volume on bills but packed by weight in the
@@ -83,7 +220,8 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
   for (const p of catalog) {
     if (!p.active) continue;
     if (!unitsComparable(p.pack_unit, item.unit)) continue;
-    const base = Math.max(0, ...p.keywords.map((keyword) => matchScore(item.name, keyword)));
+    const phrases = [...p.keywords, p.name];
+    const base = Math.max(0, ...phrases.map((phrase) => matchScore(item.name, phrase)));
     if (base === 0) continue;
     const sameFamily = unitFamily(p.pack_unit) === unitFamily(item.unit);
     candidates.push({
@@ -92,8 +230,17 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
       sizeGap: Math.abs(p.pack_qty - totalQty),
     });
   }
-  candidates.sort((a, b) => b.score - a.score || a.sizeGap - b.sizeGap);
-  return candidates[0]?.product ?? null;
+  // Among equally good names, prefer the closest pack size.
+  candidates.sort(
+    (a, b) => b.score - a.score || a.sizeGap / (totalQty || 1) - b.sizeGap / (totalQty || 1),
+  );
+  const best = candidates[0];
+  if (!best) return null;
+  // Re-rank the near-best names by pack-size closeness so 5 kg atta maps to the
+  // 5 kg pack rather than a 1 kg one.
+  const close = candidates.filter((c) => c.score >= best.score - 0.25);
+  close.sort((a, b) => a.sizeGap - b.sizeGap || b.score - a.score);
+  return close[0]?.product ?? best.product;
 }
 
 export function formatQty(qty: number, unit: Unit): string {
