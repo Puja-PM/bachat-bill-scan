@@ -330,22 +330,42 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     if (base === 0) continue;
 
     const sameFamily = unitFamily(p.pack_unit) === unitFamily(item.unit);
+    let score = sameFamily ? base : base * 0.9;
+
+    // A packed bill line belongs with the packed SKU, not the loose variant.
+    const productText = phrases.join(" ").toLowerCase();
+    if (productText.includes("loose") && !item.name.toLowerCase().includes("loose")) score -= 0.8;
+
+    // Bill says "paste"/"bar"/"spray" but the catalog item states no form:
+    // weaker evidence than a catalog item stating the same form.
+    if (itemForm && !productForm) score -= 0.6;
+
+    if (score <= 0) continue;
     candidates.push({
       product: p,
-      score: sameFamily ? base : base * 0.9,
+      score,
       sizeGap: Math.abs(p.pack_qty - totalQty),
     });
   }
-  // Among equally good names, prefer the closest pack size.
+  // Among equally good names, prefer the closest pack size. The final id
+  // tie-break keeps the chosen match identical across repeat scans.
   candidates.sort(
-    (a, b) => b.score - a.score || a.sizeGap / (totalQty || 1) - b.sizeGap / (totalQty || 1),
+    (a, b) =>
+      b.score - a.score ||
+      a.sizeGap / (totalQty || 1) - b.sizeGap / (totalQty || 1) ||
+      String(a.product.id).localeCompare(String(b.product.id)),
   );
   const best = candidates[0];
   if (!best) return null;
   // Re-rank the near-best names by pack-size closeness so 5 kg atta maps to the
   // 5 kg pack rather than a 1 kg one.
   const close = candidates.filter((c) => c.score >= best.score - 0.25);
-  close.sort((a, b) => a.sizeGap - b.sizeGap || b.score - a.score);
+  close.sort(
+    (a, b) =>
+      a.sizeGap - b.sizeGap ||
+      b.score - a.score ||
+      String(a.product.id).localeCompare(String(b.product.id)),
+  );
   return close[0]?.product ?? best.product;
 }
 
