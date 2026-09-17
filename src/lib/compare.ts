@@ -365,7 +365,6 @@ const PERSONAL_TYPES = new Set([
   "handwash",
   "brush",
   "sanitizer",
-  "bar",
 ]);
 
 const HOME_TYPES = new Set([
@@ -390,10 +389,8 @@ function domainOfCategory(category: string): Domain | null {
 }
 
 function domainOfWords(wordSet: Set<string>): Domain | null {
-  for (const word of wordSet) {
-    if (PERSONAL_TYPES.has(word)) return "personal";
-    if (HOME_TYPES.has(word)) return "home";
-  }
+  for (const word of wordSet) if (HOME_TYPES.has(word)) return "home";
+  for (const word of wordSet) if (PERSONAL_TYPES.has(word)) return "personal";
   for (const word of wordSet) if (TYPE_WORDS.has(word)) return "food";
   return null;
 }
@@ -495,6 +492,8 @@ export function findMatch(item: ScannedItem, catalog: JustProduct[]): JustProduc
     const itemDomain = domainOfWords(new Set(words(item.name))) ?? domainOfCategory(item.category);
     const productDomain = domainOfWords(productWords);
     if (itemDomain && productDomain && itemDomain !== productDomain) continue;
+    // A soap or cleaning line must land on a product that says what it is.
+    if (itemDomain && itemDomain !== "food" && !productDomain) continue;
     const productForm = formOf(productWords);
     if (itemForm && productForm && itemForm !== productForm) continue;
     const base = Math.max(
