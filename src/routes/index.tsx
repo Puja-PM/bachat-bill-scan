@@ -152,9 +152,14 @@ function ScannerApp() {
       {step !== "capture" && (
         <header className="bg-[image:var(--header-gradient)] px-5 py-6 text-primary-foreground shadow-[var(--shadow-pop)] sm:py-7">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-            <div>
+            <div className="min-w-0">
+              {step === "pitch" && (
+                <p className="truncate font-display text-xl font-extrabold leading-tight sm:text-2xl">
+                  JUST ke saath Grocery main Bachat
+                </p>
+              )}
               <p className="flex items-center gap-1.5 text-sm font-medium opacity-85">
-                <MapPin className="h-4 w-4" /> Magarpatta &amp; Hadapsar
+                <MapPin className="h-4 w-4 shrink-0" /> Magarpatta &amp; Hadapsar
               </p>
             </div>
             <Button
