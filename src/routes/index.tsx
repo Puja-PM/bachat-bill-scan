@@ -149,15 +149,12 @@ function ScannerApp() {
 
   return (
     <div className="min-h-screen bg-background pb-16">
-      {step !== "capture" && (
         <header className="bg-[image:var(--header-gradient)] px-5 py-6 text-primary-foreground shadow-[var(--shadow-pop)] sm:py-7">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
             <div className="min-w-0">
-              {step === "pitch" && (
-                <p className="truncate font-display text-xl font-extrabold leading-tight sm:text-2xl">
-                  JUST ke saath Grocery main Bachat
-                </p>
-              )}
+              <p className="truncate font-display text-xl font-extrabold leading-tight sm:text-2xl">
+                JUST ke saath Grocery main Bachat
+              </p>
               <p className="flex items-center gap-1.5 text-sm font-medium opacity-85">
                 <MapPin className="h-4 w-4 shrink-0" /> Magarpatta &amp; Hadapsar
               </p>
@@ -174,23 +171,8 @@ function ScannerApp() {
             </Button>
           </div>
         </header>
-      )}
 
       <main className={step === "capture" ? "mx-auto max-w-3xl px-4 pb-6 pt-5 sm:px-6 sm:pb-8" : "mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8"}>
-        {step === "capture" && (
-          <div className="mb-4 flex justify-end">
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 rounded-xl text-muted-foreground hover:bg-muted"
-            >
-              <Link to="/catalog" aria-label="Just catalog manage karein">
-                <Settings className="h-5 w-5" />
-              </Link>
-            </Button>
-          </div>
-        )}
         {error && (
           <div className="mb-4 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
