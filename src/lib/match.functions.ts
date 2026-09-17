@@ -61,6 +61,71 @@ const schema = {
   },
 } as const;
 
+/** Sends bill lines plus their shortlists to a small model and returns one verdict per line. */
+export async function judgeLines(
+  lines: JudgeLine[],
+  apiKey: string,
+): Promise<Array<MatchVerdict | null>> {
+  const payload = lines.map((line, i) => ({
+    line_index: i,
+    bill_line: line.line,
+    bill_pack_size: line.size,
+    bill_category: line.category,
+    candidates: line.candidates.map((c) => ({ id: c.id, product: c.label })),
+  }));
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Lovable-API-Key": apiKey,
+      "X-Lovable-AIG-SDK": "fetch",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3.8-flash",
+      temperature: 0,
+      top_p: 1,
+      seed: 7,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: JSON.stringify(payload) },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "verdicts", strict: true, schema },
+      },
+    }),
+  });
+
+  if (res.status === 429) throw new Error("Bahut requests ho gayi, thodi der baad try karein.");
+  if (res.status === 402) throw new Error("AI credits khatam ho gaye hain.");
+  if (!res.ok) throw new Error(`AI matching failed (${res.status})`);
+
+  const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const parsed = JSON.parse(body.choices?.[0]?.message?.content ?? "{}") as {
+    verdicts?: Array<{
+      line_index: number;
+      product_id: string | null;
+      confidence: number;
+      reason: string;
+    }>;
+  };
+
+  const out: Array<MatchVerdict | null> = lines.map(() => null);
+  for (const v of parsed.verdicts ?? []) {
+    const line = lines[v.line_index];
+    if (!line) continue;
+    const allowed = new Set(line.candidates.map((c) => c.id));
+    const confidence = v.confidence ?? 0;
+    out[v.line_index] = {
+      productId: v.product_id && allowed.has(v.product_id) && confidence >= 0.5 ? v.product_id : null,
+      confidence,
+      reason: v.reason ?? "",
+    };
+  }
+  return out;
+}
+
 async function hashKey(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
