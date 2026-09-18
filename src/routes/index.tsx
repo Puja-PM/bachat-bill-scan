@@ -305,13 +305,37 @@ function PitchScreen({
     ).values(),
   ).slice(0, 14);
 
-  function shareSavings() {
-    const text = `Maine JUST ke saath grocery mein ${rupees(visibleSavings)} bachaye! 🎉 Aap bhi apna bill scan karke bachat kijiye: ${APP_LINK}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  // Snapshot the pitch page as an image and share it via WhatsApp's
+  // native share sheet; fall back to downloading the image.
+  async function shareSavings() {
+    if (sharing || !pitchRef.current) return;
+    setSharing(true);
+    try {
+      const dataUrl = await toPng(pitchRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#f9f9f6",
+      });
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], "just-bachat.png", { type: "image/png" });
+      const text = `Maine JUST ke saath grocery mein ${rupees(visibleSavings)} bachaye! 🎉`;
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: "JUST Bachat", text });
+      } else {
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = "just-bachat.png";
+        link.click();
+      }
+    } catch {
+      // User cancelled the share sheet or capture failed — nothing to fix.
+    } finally {
+      setSharing(false);
+    }
   }
 
   return (
-    <div className="space-y-5 pb-5">
+    <div ref={pitchRef} className="space-y-5 pb-5">
       <section className="savings-stage relative overflow-hidden rounded-2xl border-2 border-accent bg-[image:var(--savings-gradient)] text-secondary-foreground shadow-[var(--shadow-savings)]">
         <div className="relative z-10 px-5 py-3 text-xs font-extrabold uppercase tracking-normal opacity-90">
           Just Magarpatta / Hadapsar
