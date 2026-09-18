@@ -315,6 +315,9 @@ function PitchScreen({
         cacheBust: true,
         pixelRatio: 2,
         backgroundColor: "#f9f9f6",
+        // Keep action buttons out of the shared image.
+        filter: (node) =>
+          !(node instanceof HTMLElement && node.dataset.snapshotHide !== undefined),
       });
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], "just-bachat.png", { type: "image/png" });
@@ -448,6 +451,7 @@ function PitchScreen({
 
       <Button
         type="button"
+        data-snapshot-hide
         onClick={shareSavings}
         disabled={sharing}
         className="h-auto w-full rounded-none bg-secondary px-6 py-4 font-display text-lg font-extrabold uppercase text-secondary-foreground hover:bg-secondary/90"
