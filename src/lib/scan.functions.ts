@@ -45,13 +45,12 @@ const schema = {
   },
 } as const;
 
-export const scanReceipt = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => ScanInput.parse(input))
-  .handler(async ({ data }) => {
-    const key = process.env["LOVABLE_API_KEY"];
-    if (!key) throw new Error("AI service is not configured.");
+type RawResult = { store?: string; items?: Array<Record<string, unknown>> };
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+// One gateway call per photo: pages are read in parallel instead of one long
+// sequential pass, which is where most of the wait used to come from.
+async function readPage(url: string, key: string): Promise<RawResult> {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -71,9 +70,9 @@ export const scanReceipt = createServerFn({ method: "POST" })
             content: [
               {
                 type: "text",
-                text: "Extract all items from this receipt (multiple photos may be parts of one long bill).",
+                text: "Extract all items from this receipt photo (it may be one part of a long bill).",
               },
-              ...data.images.map((url) => ({ type: "image_url", image_url: { url } })),
+              { type: "image_url", image_url: { url } },
             ],
           },
         ],
@@ -95,10 +94,19 @@ export const scanReceipt = createServerFn({ method: "POST" })
     const json = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
-    const content = json.choices?.[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(content) as {
-      store?: string;
-      items?: Array<Record<string, unknown>>;
+    return JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as RawResult;
+}
+
+export const scanReceipt = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => ScanInput.parse(input))
+  .handler(async ({ data }) => {
+    const key = process.env["LOVABLE_API_KEY"];
+    if (!key) throw new Error("AI service is not configured.");
+
+    const pages = await Promise.all(data.images.map((url) => readPage(url, key)));
+    const parsed: RawResult = {
+      store: pages.find((p) => p.store)?.store,
+      items: pages.flatMap((p) => p.items ?? []),
     };
 
     return {
