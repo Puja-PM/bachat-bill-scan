@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useRef, useMemo } from "react";
-import QRCode from "react-qr-code";
+
 import {
   Upload,
   Loader2,
@@ -48,7 +48,9 @@ export const Route = createFileRoute("/")({
 
 type Step = "capture" | "scanning" | "pitch";
 
-const APP_LINK = "https://www.swiggy.com/instamart";
+const APP_LINK =
+  "https://play.google.com/store/apps/details?id=in.jusshop.android.just";
+
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -278,8 +280,8 @@ function PitchScreen({
   catalog: JustProduct[];
   onReset: () => void;
 }) {
-  const [showQr, setShowQr] = useState(false);
   const [sharing, setSharing] = useState(false);
+
   const pitchRef = useRef<HTMLDivElement>(null);
   const topSavingRows = summary.rows
     .filter((row) => row.justPrice !== null && row.diff > 0)
@@ -432,22 +434,17 @@ function PitchScreen({
         </section>
       )}
 
-      {showQr ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6">
-          <p className="font-display text-lg font-bold">Scan karke Just order karein</p>
-          <div className="rounded-xl bg-card p-3">
-            <QRCode value={APP_LINK} size={168} />
-          </div>
-          <p className="text-xs text-muted-foreground">Swiggy Instamart · Just private label</p>
-        </div>
-      ) : (
-        <Button
-          onClick={() => setShowQr(true)}
-          className="h-auto w-full rounded-xl bg-primary px-6 py-4 font-display text-lg font-extrabold text-primary-foreground shadow-[var(--shadow-pop)] hover:bg-primary/90"
-        >
-          Install Just App &amp; Claim Savings
-        </Button>
-      )}
+      <Button
+        type="button"
+        data-snapshot-hide
+        onClick={() =>
+          window.open(APP_LINK, "_blank", "noopener,noreferrer")
+        }
+        className="h-auto w-full rounded-xl bg-primary px-6 py-4 font-display text-lg font-extrabold text-primary-foreground shadow-[var(--shadow-pop)] hover:bg-primary/90"
+      >
+        Install Just App &amp; Claim Savings
+      </Button>
+
 
       <Button
         type="button"
