@@ -104,8 +104,8 @@ export const scanReceipt = createServerFn({ method: "POST" })
     if (!key) throw new Error("AI service is not configured.");
 
     const pages = await Promise.all(data.images.map((url) => readPage(url, key)));
-    const parsed: RawResult = {
-      store: pages.find((p) => p.store)?.store,
+    const parsed = {
+      store: pages.find((p) => p.store)?.store ?? "",
       items: pages.flatMap((p) => p.items ?? []),
     };
 
