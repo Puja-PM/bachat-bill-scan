@@ -20,6 +20,7 @@ import savingsCelebration from "@/assets/savings-celebration.png";
 import { Button } from "@/components/ui/button";
 import { scanReceipt } from "@/lib/scan.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { toPng } from "html-to-image";
 import { compare, formatQty, rupees, shortlist } from "@/lib/compare";
 import { resolveMatches } from "@/lib/match.functions";
 import type { JustProduct, ScannedItem } from "@/lib/types";
@@ -278,6 +279,8 @@ function PitchScreen({
   onReset: () => void;
 }) {
   const [showQr, setShowQr] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const pitchRef = useRef<HTMLDivElement>(null);
   const topSavingRows = summary.rows
     .filter((row) => row.justPrice !== null && row.diff > 0)
     // Only the biggest JUST wins should be visible to the customer.
@@ -302,13 +305,40 @@ function PitchScreen({
     ).values(),
   ).slice(0, 14);
 
-  function shareSavings() {
-    const text = `Maine JUST ke saath grocery mein ${rupees(visibleSavings)} bachaye! 🎉 Aap bhi apna bill scan karke bachat kijiye: ${APP_LINK}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  // Snapshot the pitch page as an image and share it via WhatsApp's
+  // native share sheet; fall back to downloading the image.
+  async function shareSavings() {
+    if (sharing || !pitchRef.current) return;
+    setSharing(true);
+    try {
+      const dataUrl = await toPng(pitchRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#f9f9f6",
+        // Keep action buttons out of the shared image.
+        filter: (node) =>
+          !(node instanceof HTMLElement && node.hasAttribute("data-snapshot-hide")),
+      });
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], "just-bachat.png", { type: "image/png" });
+      const text = `Maine JUST ke saath grocery mein ${rupees(visibleSavings)} bachaye! 🎉`;
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: "JUST Bachat", text });
+      } else {
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = "just-bachat.png";
+        link.click();
+      }
+    } catch {
+      // User cancelled the share sheet or capture failed — nothing to fix.
+    } finally {
+      setSharing(false);
+    }
   }
 
   return (
-    <div className="space-y-5 pb-5">
+    <div ref={pitchRef} className="space-y-5 pb-5">
       <section className="savings-stage relative overflow-hidden rounded-2xl border-2 border-accent bg-[image:var(--savings-gradient)] text-secondary-foreground shadow-[var(--shadow-savings)]">
         <div className="relative z-10 px-5 py-3 text-xs font-extrabold uppercase tracking-normal opacity-90">
           Just Magarpatta / Hadapsar
@@ -421,14 +451,17 @@ function PitchScreen({
 
       <Button
         type="button"
+        data-snapshot-hide
         onClick={shareSavings}
+        disabled={sharing}
         className="h-auto w-full rounded-none bg-secondary px-6 py-4 font-display text-lg font-extrabold uppercase text-secondary-foreground hover:bg-secondary/90"
       >
-        <Share2 className="h-5 w-5" /> Share your bachat
+        {sharing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />} Share your bachat
       </Button>
 
       <Button
         type="button"
+        data-snapshot-hide
         variant="ghost"
         onClick={onReset}
         className="h-auto w-full rounded-xl border border-border py-3 text-sm font-semibold text-muted-foreground"
