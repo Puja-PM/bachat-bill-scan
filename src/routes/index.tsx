@@ -279,6 +279,8 @@ function PitchScreen({
   onReset: () => void;
 }) {
   const [showQr, setShowQr] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const pitchRef = useRef<HTMLDivElement>(null);
   const topSavingRows = summary.rows
     .filter((row) => row.justPrice !== null && row.diff > 0)
     // Only the biggest JUST wins should be visible to the customer.
