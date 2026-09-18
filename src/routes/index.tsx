@@ -20,6 +20,7 @@ import savingsCelebration from "@/assets/savings-celebration.png";
 import { Button } from "@/components/ui/button";
 import { scanReceipt } from "@/lib/scan.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { toPng } from "html-to-image";
 import { compare, formatQty, rupees, shortlist } from "@/lib/compare";
 import { resolveMatches } from "@/lib/match.functions";
 import type { JustProduct, ScannedItem } from "@/lib/types";
