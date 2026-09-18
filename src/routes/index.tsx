@@ -115,25 +115,23 @@ function ScannerApp() {
       setCatalog(products);
       setStore(result.store);
       setItems(result.items);
-
-      // Rules build a shortlist, a small model picks the like-for-like winner.
-      // Any failure there just leaves the deterministic pick in place.
-      try {
-        const lines = result.items.map((item) => ({
-          line: item.name,
-          size: formatQty(item.qty * (item.count || 1), item.unit),
-          category: item.category ?? "",
-          candidates: shortlist(item, products).map((p) => ({
-            id: String(p.id),
-            label: `${p.name} — ${formatQty(Number(p.pack_qty), p.pack_unit)} @ ${rupees(Number(p.price))}`,
-          })),
-        }));
-        const verdicts = await resolve({ data: { lines } });
-        setResolved(verdicts.map((v) => (v ? v.productId : undefined)));
-      } catch {
-        setResolved([]);
-      }
+      setResolved([]);
+      // Savings show straight away from the deterministic rules pick; the AI
+      // like-for-like check refines them in the background a moment later.
       setStep("pitch");
+
+      const lines = result.items.map((item) => ({
+        line: item.name,
+        size: formatQty(item.qty * (item.count || 1), item.unit),
+        category: item.category ?? "",
+        candidates: shortlist(item, products).map((p) => ({
+          id: String(p.id),
+          label: `${p.name} — ${formatQty(Number(p.pack_qty), p.pack_unit)} @ ${rupees(Number(p.price))}`,
+        })),
+      }));
+      void resolve({ data: { lines } })
+        .then((verdicts) => setResolved(verdicts.map((v) => (v ? v.productId : undefined))))
+        .catch(() => setResolved([]));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kuch galat ho gaya");
       setStep("capture");
