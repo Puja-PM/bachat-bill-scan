@@ -8,7 +8,7 @@ const ScanInput = z.object({
 const SYSTEM_PROMPT = `You read Indian hypermarket receipts (D-Mart, Star Bazaar, Reliance Fresh, etc.), often faded thermal prints.
 Extract every purchased line item. Rules:
 - name: the printed item description, cleaned up (brand + product).
-- raw_line: the complete original printed line, including quantity/unit text.
+- raw_line: ONLY the printed quantity/unit fragment from the line (e.g. "1 KG", "500 ML", "2 N"). Keep it under 12 characters. Empty string if none printed.
 - qty: the pack size number only (e.g. 500 for "500 ML", 5 for "5 KG", 1 for loose/unit items).
 - unit: normalize to "g" (grams; convert kg -> g), "ml" (millilitres; convert L -> ml) or "unit" (pieces, apparel, unlabelled packs).
 - count: how many packs of that line were bought (default 1).
