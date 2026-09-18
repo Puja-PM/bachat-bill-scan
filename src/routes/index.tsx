@@ -449,9 +449,10 @@ function PitchScreen({
       <Button
         type="button"
         onClick={shareSavings}
+        disabled={sharing}
         className="h-auto w-full rounded-none bg-secondary px-6 py-4 font-display text-lg font-extrabold uppercase text-secondary-foreground hover:bg-secondary/90"
       >
-        <Share2 className="h-5 w-5" /> Share your bachat
+        {sharing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />} Share your bachat
       </Button>
 
       <Button
